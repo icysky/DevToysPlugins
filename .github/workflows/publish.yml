@@ -53,15 +53,24 @@ jobs:
           dotnet build DevToysPlugins.slnx -c Release --nologo
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Smoke tests
+      # 三个套件各自一步：哪一步红就直接指明是哪个 suite，日志也不会互相淹没
+      - name: Smoke tests (GmCrypto)
         shell: powershell
         run: |
-          $suites = @('GmCrypto.Smoke', 'ChineseIpsum.Smoke', 'GoogleAuthenticator.Smoke')
-          foreach ($suite in $suites) {
-            Write-Host "=== $suite"
-            ./tools/$suite/run.ps1
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          }
+          ./tools/GmCrypto.Smoke/run.ps1
+          if ($LASTEXITCODE -ne 0) { Write-Host "::error::GmCrypto.Smoke failed ($LASTEXITCODE)"; exit $LASTEXITCODE }
+
+      - name: Smoke tests (ChineseIpsum)
+        shell: powershell
+        run: |
+          ./tools/ChineseIpsum.Smoke/run.ps1
+          if ($LASTEXITCODE -ne 0) { Write-Host "::error::ChineseIpsum.Smoke failed ($LASTEXITCODE)"; exit $LASTEXITCODE }
+
+      - name: Smoke tests (GoogleAuthenticator)
+        shell: powershell
+        run: |
+          ./tools/GoogleAuthenticator.Smoke/run.ps1
+          if ($LASTEXITCODE -ne 0) { Write-Host "::error::GoogleAuthenticator.Smoke failed ($LASTEXITCODE)"; exit $LASTEXITCODE }
 
       - name: Pack all plugins
         shell: powershell
