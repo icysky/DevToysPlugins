@@ -20,6 +20,8 @@
     <Description>SM2/SM3/SM4 国密工具箱：摘要（文本/文件）、SM4 加解密、SM2 签名验签与加解密。</Description>
     <Authors>GmCrypto</Authors>
     <PackageTags>devtoys-app</PackageTags>
+    <!-- nuget.org 要求声明许可证，否则发布页显示“无许可证”并给出 License missing 警告 -->
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageId>GmCrypto.DevToys</PackageId>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <!-- 由下方 IncludeAllFilesInTargetDir 统一打包，避免默认 build output 与自定义 lib 重复 -->
