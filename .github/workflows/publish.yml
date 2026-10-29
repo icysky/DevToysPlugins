@@ -26,8 +26,8 @@ on:
       - 'v*'
 
 permissions:
-  contents: read
-  id-token: write
+  contents: write   # 需要创建 GitHub Release 并上传附件
+  id-token: write   # NuGet 受信任发布（OIDC）
 
 jobs:
   publish:
@@ -72,6 +72,9 @@ jobs:
             }
           }
 
+      # 注意：必须用「命名参数」调用（哈希表 splat）。
+      # 数组 splat 会按位置绑定，'-NoClean' 会被当成 -Configuration 的取值，
+      # 而它的 ValidateSet 只有 Debug/Release，于是脚本立刻参数校验失败（这就是第一次 CI 挂的原因）。
       - name: Pack all plugins
         shell: powershell
         run: |
@@ -79,10 +82,19 @@ jobs:
           $plugins = @('GmCrypto.DevToys', 'MyCert.DevToys', 'GoogleAuthenticator.DevToys', 'ChineseIpsum.DevToys')
           foreach ($plugin in $plugins) {
             Write-Host "=== $plugin"
-            $packArgs = @('-NoClean')
-            if ($version) { $packArgs += @('-Version', $version) }
-            ./src/$plugin/pack.ps1 @packArgs
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            $packArgs = @{ NoClean = $true }
+            if ($version) { $packArgs['Version'] = $version }
+            try {
+              & "./src/$plugin/pack.ps1" @packArgs
+            }
+            catch {
+              Write-Host "::error::$plugin pack threw: $($_.Exception.Message)"
+              exit 1
+            }
+            if ($LASTEXITCODE -ne 0) {
+              Write-Host "::error::$plugin pack.ps1 exited $LASTEXITCODE"
+              exit $LASTEXITCODE
+            }
           }
 
       - name: NuGet login (OIDC -> temporary API key)
@@ -101,4 +113,30 @@ jobs:
               --source https://api.nuget.org/v3/index.json `
               --skip-duplicate
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
+      # 把本次打包的 nupkg 作为附件挂到同名 GitHub Release 上（手动下载用）。
+      # Release 已存在时改为覆盖上传，保证重复运行不报错。
+      - name: Attach packages to GitHub release
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = '${{ github.ref_name }}'
+          $files = @(Get-ChildItem artifacts -Filter *.nupkg | ForEach-Object { $_.FullName })
+          Write-Host "release tag: $tag, files: $($files.Count)"
+          gh release view $tag 2>$null | Out-Null
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "release exists, uploading with --clobber"
+            gh release upload $tag @files --clobber
+          }
+          else {
+            gh release create $tag @files `
+              --title $tag `
+              --latest `
+              --notes "NuGet: GmCrypto.DevToys / MyCert.DevToys / GoogleAuthenticator.DevToys / ChineseIpsum.DevToys"
+          }
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "::error::gh release failed ($LASTEXITCODE)"
+            exit $LASTEXITCODE
           }
