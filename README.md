@@ -2,14 +2,20 @@
 
 自用的四个 [DevToys 2.0（Preview）](https://devtoys.app/) 扩展，统一在一个解决方案里。
 
-| 项目 | 功能 | 工具名（DevToys 左侧） |
-| --- | --- | --- |
-| [`src/GoogleAuthenticator.DevToys`](src/GoogleAuthenticator.DevToys/README.md) | Google Authenticator 风格的动态口令（TOTP / HOTP）管理器，扫码添加、加密备份 | 动态口令 |
-| [`src/MyCert.DevToys`](src/MyCert.DevToys/README.md) | 生成测试用 X.509 证书（RSA / SM2 国密），导出 PFX/CER/PEM | 证书生成器 |
-| [`src/ChineseIpsum.DevToys`](src/ChineseIpsum.DevToys/README.md) | 中文假文生成器，语料为四大名著公版节选 | 中文假文 |
-| [`src/GmCrypto.DevToys`](src/GmCrypto.DevToys/README.md) | 国密算法四件套：SM3 摘要、SM4 加解密、SM2 签名验签、SM2 加解密 | SM3 摘要 / SM4 加解密 / SM2 签名验签 / SM2 加解密 |
+| 项目 | 功能 | 工具名（DevToys 左侧） | NuGet |
+| --- | --- | --- | --- |
+| [`src/GoogleAuthenticator.DevToys`](src/GoogleAuthenticator.DevToys/README.md) | Google Authenticator 风格的动态口令（TOTP / HOTP）管理器，扫码添加、加密备份 | 动态口令 | [GoogleAuthenticator.DevToys](https://www.nuget.org/packages/GoogleAuthenticator.DevToys) |
+| [`src/MyCert.DevToys`](src/MyCert.DevToys/README.md) | 生成测试用 X.509 证书（RSA / SM2 国密），导出 PFX/CER/PEM | 证书生成器 | [MyCert.DevToys](https://www.nuget.org/packages/MyCert.DevToys) |
+| [`src/ChineseIpsum.DevToys`](src/ChineseIpsum.DevToys/README.md) | 中文假文生成器，语料为四大名著公版节选 | 中文假文 | [ChineseIpsum.DevToys](https://www.nuget.org/packages/ChineseIpsum.DevToys) |
+| [`src/GmCrypto.DevToys`](src/GmCrypto.DevToys/README.md) | 国密算法四件套：SM3 摘要、SM4 加解密、SM2 签名验签、SM2 加解密 | SM3 摘要 / SM4 加解密 / SM2 签名验签 / SM2 加解密 | [GmCrypto.DevToys](https://www.nuget.org/packages/GmCrypto.DevToys) |
 
 前三个插件在「生成器（Generators）」分组，国密四个工具在「编码/解码（Encoders & Decoders）」分组。
+
+## 安装
+
+在 DevToys 中：**设置 → 扩展（Manage extensions）** → 搜索工具名（或标签 `devtoys-app`）→ 安装 → 重启 DevToys。
+
+也可以直接下载 [Releases](https://github.com/icysky/DevToysPlugins/releases) 里的 nupkg，或自行编译后用各插件的 `pack.ps1 -Install` 安装到本地插件目录。
 
 ## 目录结构
 

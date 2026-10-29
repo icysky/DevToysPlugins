@@ -3,6 +3,8 @@
 DevToys 扩展：**中文假文生成器**。交互对齐 DevToys 自带的「乱数假文（Lorem Ipsum）」，
 但语料换成中国四大名著的公版原文节选，输出全中文。
 
+NuGet 包：<https://www.nuget.org/packages/ChineseIpsum.DevToys>　·　安装：DevToys → 设置 → 扩展 → 搜索「假文」或 `lorem`。
+
 ## 功能
 
 - **语料**：红楼梦 / 西游记 / 水浒传 / 三国演义 / 四大名著混合

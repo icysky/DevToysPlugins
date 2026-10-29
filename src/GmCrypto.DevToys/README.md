@@ -2,6 +2,8 @@
 
 DevToys 2.0 扩展：SM2 / SM3 / SM4 国密算法，按用途拆成 **4 个工具**，都位于「编码/解码（Encoders & Decoders）」分组：
 
+NuGet 包：<https://www.nuget.org/packages/GmCrypto.DevToys>　·　安装：DevToys → 设置 → 扩展 → 搜索「国密」或 `SM3`。
+
 | 工具 | 图标 | 能力 |
 | --- | --- | --- |
 | SM3 摘要 | 指纹 | 文本 Hash + 文件 Hash（流式、带进度），输出 64 位小写 Hex |

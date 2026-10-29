@@ -2,6 +2,8 @@
 
 DevToys 扩展：**Google Authenticator 风格的动态口令（TOTP / HOTP）管理器**。
 
+NuGet 包：<https://www.nuget.org/packages/GoogleAuthenticator.DevToys>　·　安装：DevToys → 设置 → 扩展 → 搜索「动态口令」或 `TOTP`。
+
 ## 功能
 
 - **三种添加方式**

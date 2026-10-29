@@ -2,6 +2,8 @@
 
 MyCert 的 DevToys 扩展：在 [DevToys](https://devtoys.app/) 中生成测试用 X.509 证书。
 
+NuGet 包：<https://www.nuget.org/packages/MyCert.DevToys>　·　安装：DevToys → 设置 → 扩展 → 搜索「证书」或 `SM2`。
+
 ## 功能
 
 - **RSA** 2048 / 3072 / 4096（SHA-256）与 **SM2**（sm2p256v1 + SM3withSM2，国密）
