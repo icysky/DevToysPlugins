@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ChineseIpsum.DevToys/ChineseIpsum.DevToys.csproj" />
+    <Project Path="src/GmCrypto.DevToys/GmCrypto.DevToys.csproj" />
+    <Project Path="src/GoogleAuthenticator.DevToys/GoogleAuthenticator.DevToys.csproj" />
+    <Project Path="src/MyCert.DevToys/MyCert.DevToys.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/ChineseIpsum.Smoke/ChineseIpsum.Smoke.csproj" />
+    <Project Path="tools/GmCrypto.Smoke/GmCrypto.Smoke.csproj" />
+    <Project Path="tools/GoogleAuthenticator.Smoke/GoogleAuthenticator.Smoke.csproj" />
+  </Folder>
+</Solution>

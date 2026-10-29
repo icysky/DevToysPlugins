@@ -1,0 +1,92 @@
+# Publish all DevToys plugins to nuget.org.
+#
+# Uses NuGet "Trusted Publishing" (OIDC) instead of a long-lived API key:
+#   1. nuget.org -> Trusted Publishing -> create a policy with
+#        Repository Owner  = <github user/org>
+#        Repository        = <this repository name>
+#        Workflow File     = publish.yml   (this file, relative to .github/workflows)
+#        Scopes            = Push new packages and package versions
+#   2. Add a repository secret NUGET_USER with your nuget.org profile name.
+#   3. Bump <Version> in each plugin csproj (nuget.org rejects duplicates),
+#      then either push a v* tag or run this workflow manually.
+#
+# Required permission: id-token: write (OIDC token exchange).
+
+name: publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Optional version override for every package (e.g. 1.0.2). Empty = use each csproj Version.'
+        required: false
+        default: ''
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    # Keep the same OS/PowerShell as local development: the pack scripts are PS 5.1 friendly.
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          # global.json pins 10.0.403 with rollForward=latestFeature
+          dotnet-version: '10.0.x'
+
+      - name: Build solution
+        shell: powershell
+        run: |
+          dotnet build DevToysPlugins.slnx -c Release --nologo
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Smoke tests
+        shell: powershell
+        run: |
+          $suites = @('GmCrypto.Smoke', 'ChineseIpsum.Smoke', 'GoogleAuthenticator.Smoke')
+          foreach ($suite in $suites) {
+            Write-Host "=== $suite"
+            ./tools/$suite/run.ps1
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
+      - name: Pack all plugins
+        shell: powershell
+        run: |
+          $version = '${{ inputs.version }}'
+          $plugins = @('GmCrypto.DevToys', 'MyCert.DevToys', 'GoogleAuthenticator.DevToys', 'ChineseIpsum.DevToys')
+          foreach ($plugin in $plugins) {
+            Write-Host "=== $plugin"
+            $packArgs = @('-NoClean')
+            if ($version) { $packArgs += @('-Version', $version) }
+            ./src/$plugin/pack.ps1 @packArgs
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
+      - name: NuGet login (OIDC -> temporary API key)
+        id: nuget-login
+        uses: NuGet/login@v1
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
+      - name: Push packages to nuget.org
+        shell: powershell
+        run: |
+          Get-ChildItem artifacts/*.nupkg | ForEach-Object {
+            Write-Host "Pushing $($_.Name)"
+            dotnet nuget push $_.FullName `
+              --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} `
+              --source https://api.nuget.org/v3/index.json `
+              --skip-duplicate
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }

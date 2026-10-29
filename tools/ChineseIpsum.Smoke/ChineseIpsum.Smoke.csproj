@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    生成逻辑回归冒烟：只链接 Core 源码（不依赖 DevToys.Api，因此可以独立运行）。
+    RootNamespace 必须与插件一致，内嵌语料的资源名才会对上。
+    运行：powershell -ExecutionPolicy Bypass -File tools\ChineseIpsum.Smoke\run.ps1
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!--
+      刻意用 net8.0：DevToys 2.0.9 自带的运行时就是 .NET 8。
+      插件工程 target net10.0 时，编译器会放行 .NET 9/10 新增的 API（例如 System.Threading.Lock），
+      但运行时一调用就抛 "Could not load type ... from assembly 'System.Runtime, Version=8.0.0.0'"。
+      把冒烟测试降到 net8.0，等于给生成逻辑加了一道「API 可用性」门禁。
+    -->
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>ChineseIpsum.DevToys</RootNamespace>
+    <AssemblyName>ChineseIpsum.Smoke</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\src\ChineseIpsum.DevToys\Core\**\*.cs"
+             Exclude="..\..\src\ChineseIpsum.DevToys\bin\**\*.cs;..\..\src\ChineseIpsum.DevToys\obj\**\*.cs"
+             LinkBase="Core" />
+    <EmbeddedResource Include="..\..\src\ChineseIpsum.DevToys\Assets\Corpus\*.txt"
+                      Link="Assets\Corpus\%(Filename)%(Extension)" />
+  </ItemGroup>
+
+</Project>

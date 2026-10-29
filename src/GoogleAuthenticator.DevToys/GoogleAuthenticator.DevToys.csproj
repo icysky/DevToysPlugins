@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!--
+      必须按 net8.0 编译：宿主是自包含 .NET 8。net10.0 编译会引用 10.0.0.0 的真实框架程序集，
+      在 .NET 8 宿主上加载失败（详见仓库根 README 坑 1）。
+    -->
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>GoogleAuthenticator.DevToys</RootNamespace>
+    <AssemblyName>GoogleAuthenticator.DevToys</AssemblyName>
+    <!-- DevToys 扩展元数据 -->
+    <IsPackable>true</IsPackable>
+    <Version>1.0.0.1</Version>
+    <Title>DevToys Authenticator</Title>
+    <Description>A Google Authenticator style TOTP/HOTP code manager with encrypted backup export/import.</Description>
+    <Authors>GoogleAuthenticator</Authors>
+    <PackageId>GoogleAuthenticator.DevToys</PackageId>
+    <PackageTags>devtoys-app</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <!-- 由 IncludeAllFilesInTargetDir 统一打包，避免默认 build output 与自定义 lib 重复 -->
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <!-- MEF 依赖通过反射加载，禁止 trimming / AOT -->
+    <PublishTrimmed>false</PublishTrimmed>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- 宿主已自带 DevToys.Api / MEF / ImageSharp，只编译引用，不复制到插件输出 -->
+    <PackageReference Include="DevToys.Api" Version="2.0.9-preview" PrivateAssets="all" ExcludeAssets="runtime" />
+    <PackageReference Include="System.ComponentModel.Composition" Version="8.0.0" PrivateAssets="all" ExcludeAssets="runtime" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" PrivateAssets="all" ExcludeAssets="runtime" />
+    <!-- 二维码识别（纯托管，随包分发） -->
+    <PackageReference Include="ZXing.Net" Version="0.16.11" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+  <!-- DevToys 扩展包：把插件自身及运行时依赖全部放进 lib/<TFM> -->
+  <Target Name="IncludeAllFilesInTargetDir" BeforeTargets="_GetPackageFiles">
+    <ItemGroup>
+      <None Include="$(OutputPath)\**">
+        <Pack>true</Pack>
+        <PackagePath>lib\$(TargetFramework)</PackagePath>
+      </None>
+    </ItemGroup>
+  </Target>
+</Project>

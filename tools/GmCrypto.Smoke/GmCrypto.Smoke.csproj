@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    国密算法回归冒烟：只链接插件的 Core 源码（不依赖 DevToys.Api，因此可以独立运行）。
+    运行：powershell -ExecutionPolicy Bypass -File tools\GmCrypto.Smoke\run.ps1
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!--
+      刻意用 net8.0：DevToys 2.0.9 宿主运行时就是 .NET 8。
+      插件工程 target net10.0 时编译器会放行 .NET 9/10 新 API，运行到宿主才炸；
+      把冒烟降到 net8.0 等于给算法与工具逻辑加一道「API 可用性」门禁。
+    -->
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>GmCrypto.DevToys</RootNamespace>
+    <AssemblyName>GmCrypto.Smoke</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\src\GmCrypto.DevToys\Core\**\*.cs"
+             Exclude="..\..\src\GmCrypto.DevToys\bin\**\*.cs;..\..\src\GmCrypto.DevToys\obj\**\*.cs"
+             LinkBase="Core" />
+  </ItemGroup>
+
+</Project>

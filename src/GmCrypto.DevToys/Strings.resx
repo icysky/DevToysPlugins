@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Sm3ShortDisplayTitle" xml:space="preserve">
+    <value>SM3 摘要</value>
+  </data>
+  <data name="Sm3LongDisplayTitle" xml:space="preserve">
+    <value>SM3 摘要（文本 / 文件）</value>
+  </data>
+  <data name="Sm3Description" xml:space="preserve">
+    <value>对文本或文件计算 SM3 摘要，输出 64 位小写 Hex，支持流式大文件与进度显示。</value>
+  </data>
+  <data name="Sm3AccessibleName" xml:space="preserve">
+    <value>SM3 摘要，用于计算文本或文件的国密哈希</value>
+  </data>
+  <data name="Sm3SearchKeywords" xml:space="preserve">
+    <value>sm3,gm,guomi,国密,摘要,哈希,hash,校验,文本,文件</value>
+  </data>
+
+  <data name="Sm4ShortDisplayTitle" xml:space="preserve">
+    <value>SM4 加解密</value>
+  </data>
+  <data name="Sm4LongDisplayTitle" xml:space="preserve">
+    <value>SM4 加解密（ECB / CBC / CTR）</value>
+  </data>
+  <data name="Sm4Description" xml:space="preserve">
+    <value>SM4 分组对称加密与解密，支持 ECB / CBC / CTR 与 PKCS7 / None / Zeros 填充。</value>
+  </data>
+  <data name="Sm4AccessibleName" xml:space="preserve">
+    <value>SM4 加解密，国密对称算法</value>
+  </data>
+  <data name="Sm4SearchKeywords" xml:space="preserve">
+    <value>sm4,gm,guomi,国密,对称,加密,解密,ecb,cbc,ctr,pkcs7</value>
+  </data>
+
+  <data name="Sm2SignShortDisplayTitle" xml:space="preserve">
+    <value>SM2 签名验签</value>
+  </data>
+  <data name="Sm2SignLongDisplayTitle" xml:space="preserve">
+    <value>SM2 签名 / 验签</value>
+  </data>
+  <data name="Sm2SignDescription" xml:space="preserve">
+    <value>使用 SM2 私钥签名、公钥验签，支持 UserId（Z 值）与 DER / raw(r||s) 两种签名格式。</value>
+  </data>
+  <data name="Sm2SignAccessibleName" xml:space="preserve">
+    <value>SM2 签名验签，国密非对称签名</value>
+  </data>
+  <data name="Sm2SignSearchKeywords" xml:space="preserve">
+    <value>sm2,gm,guomi,国密,签名,验签,sign,verify,der,raw,userid</value>
+  </data>
+
+  <data name="Sm2CryptShortDisplayTitle" xml:space="preserve">
+    <value>SM2 加解密</value>
+  </data>
+  <data name="Sm2CryptLongDisplayTitle" xml:space="preserve">
+    <value>SM2 加解密（C1C3C2 / C1C2C3）</value>
+  </data>
+  <data name="Sm2CryptDescription" xml:space="preserve">
+    <value>使用 SM2 公钥加密、私钥解密，密文支持 C1C3C2（国标）与 C1C2C3 两种顺序。</value>
+  </data>
+  <data name="Sm2CryptAccessibleName" xml:space="preserve">
+    <value>SM2 加解密，国密公钥加密</value>
+  </data>
+  <data name="Sm2CryptSearchKeywords" xml:space="preserve">
+    <value>sm2,gm,guomi,国密,加密,解密,c1c3c2,c1c2c3,公钥,私钥</value>
+  </data>
+</root>

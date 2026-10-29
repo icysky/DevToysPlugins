@@ -1,0 +1,21 @@
+# 统一行尾，避免 Windows/Linux 之间反复出现整文件 diff
+* text=auto
+
+# 脚本与源码在 Windows 上按 CRLF 检出（PowerShell 5.1 对本机脚本更友好）
+*.ps1   text eol=crlf
+*.cs    text eol=crlf
+*.csproj text eol=crlf
+*.slnx  text eol=crlf
+*.resx  text eol=crlf
+
+# 文档与配置按 LF
+*.md    text eol=lf
+*.yml   text eol=lf
+*.json  text eol=lf
+
+# 二进制
+*.png   binary
+*.ico   binary
+*.dll   binary
+*.nupkg binary
+*.snupkg binary

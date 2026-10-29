@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- 必须按 net8.0 编译，与 DevToys 宿主运行时保持一致（详见仓库根 README 坑 1）。 -->
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>ChineseIpsum.DevToys</RootNamespace>
+    <AssemblyName>ChineseIpsum.DevToys</AssemblyName>
+    <IsPackable>true</IsPackable>
+    <Version>1.0.0.1</Version>
+    <Title>DevToys Chinese Ipsum</Title>
+    <Description>Chinese Lorem Ipsum generator using excerpts from the four great classical novels.</Description>
+    <Authors>ChineseIpsum</Authors>
+    <PackageId>ChineseIpsum.DevToys</PackageId>
+    <PackageTags>devtoys-app</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <PublishTrimmed>false</PublishTrimmed>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="DevToys.Api" Version="2.0.9-preview" PrivateAssets="all" ExcludeAssets="runtime" />
+    <PackageReference Include="System.ComponentModel.Composition" Version="8.0.0" PrivateAssets="all" ExcludeAssets="runtime" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- 语料必须以「嵌入资源」方式打进程序集，逻辑名固定为 Assets/Corpus 下原样路径 -->
+    <EmbeddedResource Include="Assets\Corpus\*.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+  <Target Name="IncludeAllFilesInTargetDir" BeforeTargets="_GetPackageFiles">
+    <ItemGroup>
+      <None Include="$(OutputPath)\**">
+        <Pack>true</Pack>
+        <PackagePath>lib\$(TargetFramework)</PackagePath>
+      </None>
+    </ItemGroup>
+  </Target>
+</Project>

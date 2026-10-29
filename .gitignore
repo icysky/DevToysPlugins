@@ -1,0 +1,26 @@
+# 构建输出
+bin/
+obj/
+artifacts/
+
+# IDE / 编辑器
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# 本地产物
+*.nupkg
+*.snupkg
+*.log
+*.tmp
+
+# 工具/助手本地数据
+.codebuddy/
+
+# 操作系统
+Thumbs.db
+.DS_Store

@@ -1,0 +1,57 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!--
+      必须按 net8.0 编译：DevToys 2.0.9-preview 宿主是自包含 .NET 8（includedFrameworks 8.0.x）。
+      若按 net10.0 编译，程序集会引用 System.Runtime.Numerics 10.0.0.0 等真实框架程序集
+      （SM2 用 BigInteger 就落在这个程序集里），.NET 8 宿主加载时会抛
+      ReflectionTypeLoadException -> FileNotFoundException，插件在扩展列表里能看见但工具不出现。
+      注意 System.Runtime 是特例，会被统一绑定，所以只用到 System.Runtime 的 net10 插件能侥幸跑起来。
+    -->
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>GmCrypto.DevToys</RootNamespace>
+    <AssemblyName>GmCrypto.DevToys</AssemblyName>
+    <!-- DevToys 扩展元数据 -->
+    <IsPackable>true</IsPackable>
+    <Version>1.0.1.1</Version>
+    <Title>DevToys GM Crypto</Title>
+    <Description>SM2/SM3/SM4 国密工具箱：摘要（文本/文件）、SM4 加解密、SM2 签名验签与加解密。</Description>
+    <Authors>GmCrypto</Authors>
+    <PackageTags>devtoys-app</PackageTags>
+    <PackageId>GmCrypto.DevToys</PackageId>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <!-- 由下方 IncludeAllFilesInTargetDir 统一打包，避免默认 build output 与自定义 lib 重复 -->
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <!-- MEF 依赖通过反射加载，禁止 trimming -->
+    <PublishTrimmed>false</PublishTrimmed>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- 宿主已自带 DevToys.Api 与 MEF 程序集，只编译引用，不复制到插件输出 -->
+    <PackageReference Include="DevToys.Api" Version="2.0.9-preview" PrivateAssets="all" ExcludeAssets="runtime" />
+    <PackageReference Include="System.ComponentModel.Composition" Version="8.0.0" PrivateAssets="all" ExcludeAssets="runtime" />
+    <!--
+      GB18030 依赖 CodePagesEncodingProvider，它在 .NET 共享框架里
+      （shared/Microsoft.NETCore.App/8.x/System.Text.Encoding.CodePages.dll），
+      net8.0 参照包也自带，因此不需要 NuGet 包（net10 目标下会触发 NU1510 并被裁掉）。
+    -->
+  </ItemGroup>
+  <ItemGroup>
+    <!--
+      Core\ 是 E:\NewProjects\GM\src\GM.Core 的内联副本（SM2/SM3/SM4 纯托管实现）。
+      保持 GM.Core.* 命名空间不变，方便与 GM 仓库对比同步。
+    -->
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+  <!-- DevToys 扩展包：把插件自身及运行时依赖全部放进 lib/<TFM> -->
+  <Target Name="IncludeAllFilesInTargetDir" BeforeTargets="_GetPackageFiles">
+    <ItemGroup>
+      <None Include="$(OutputPath)\**">
+        <Pack>true</Pack>
+        <PackagePath>lib\$(TargetFramework)</PackagePath>
+      </None>
+    </ItemGroup>
+  </Target>
+</Project>

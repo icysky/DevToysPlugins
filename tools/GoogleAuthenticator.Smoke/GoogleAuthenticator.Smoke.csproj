@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    插件回归冒烟测试。直接链接插件源码编译（不引用插件 dll），
+    因此可以覆盖 internal 类型；不依赖 DevToys 进程，也不需要 DevToys 安装目录。
+
+    运行：powershell -ExecutionPolicy Bypass -File tools\GoogleAuthenticator.Smoke\run.ps1
+    退出码 0 = 全部通过。
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!--
+      刻意用 net8.0：DevToys 2.0.9 自带 .NET 8 运行时。
+      插件 target net10.0 时编译器会放行 .NET 9/10 新增 API（如 System.Threading.Lock），
+      运行时才抛 "Could not load type ... from assembly 'System.Runtime, Version=8.0.0.0'"。
+      冒烟测试跑在 net8 上，等于免费获得一道 API 可用性门禁。
+    -->
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>GoogleAuthenticator.Smoke</RootNamespace>
+    <AssemblyName>GoogleAuthenticator.Smoke</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\src\GoogleAuthenticator.DevToys\**\*.cs"
+             Exclude="..\..\src\GoogleAuthenticator.DevToys\bin\**\*.cs;..\..\src\GoogleAuthenticator.DevToys\obj\**\*.cs"
+             LinkBase="Plugin" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DevToys.Api" Version="2.0.9-preview" />
+    <PackageReference Include="System.ComponentModel.Composition" Version="8.0.0" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
+    <PackageReference Include="ZXing.Net" Version="0.16.11" />
+  </ItemGroup>
+
+  <!--
+    DevToys.Api 的 targets 会把「宿主已自带」的程序集从输出目录剔除（对真实插件是对的），
+    但本测试是独立进程，需要它们才能运行，所以从 @(ReferencePath) 里补回来。
+  -->
+  <Target Name="RestoreHostAssemblies" AfterTargets="Build">
+    <ItemGroup>
+      <HostAssemblyToCopy Include="@(ReferencePath)" Condition="'%(Filename)' == 'DevToys.Api' Or '%(Filename)' == 'CommunityToolkit.Common' Or '%(Filename)' == 'CommunityToolkit.Diagnostics' Or '%(Filename)' == 'Microsoft.Extensions.DependencyInjection.Abstractions' Or '%(Filename)' == 'Microsoft.Extensions.Logging.Abstractions' Or '%(Filename)' == 'OneOf' Or '%(Filename)' == 'SixLabors.ImageSharp' Or '%(Filename)' == 'System.ComponentModel.Composition'" />
+    </ItemGroup>
+    <Copy SourceFiles="@(HostAssemblyToCopy)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
+  </Target>
+
+</Project>
