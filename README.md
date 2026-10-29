@@ -153,6 +153,17 @@ git push --tags     # 发布用（配合 .github/workflows/publish.yml）
    已验证可用的码位：`\uE78F` 挂锁、`\uF27E` 证书、`\uF8FD` 书本、`\uE8C9` 密码、
    `\uF4B6` 钥匙、`\uF6BE` 盾牌、`\uE611` 指纹、`\uE9EC` 二维码、`\uED88` 计时器。
 
+## 许可证
+
+本仓库代码采用 **0BSD（BSD Zero Clause）** —— OSI 认证里最宽松的许可：可任意使用、修改、分发，
+甚至**不需要署名、不要求保留版权声明**。全文见 [LICENSE](LICENSE)。
+
+随包分发的第三方组件仍遵循各自许可证（BouncyCastle = MIT、ZXing.Net = Apache-2.0 等），
+详见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)；相应许可证全文会随 nupkg 一起发布到 `licenses/` 目录。
+
+> 如果你想保留「必须署名」这一条，把 `Directory.Build.props` 里的
+> `PackageLicenseExpression` 改成 `MIT`、并把 `LICENSE` 换成 MIT 文本即可。
+
 ## 说明
 
 - 这三个插件均为个人自用；扩展本质是 NuGet 包，随包带上 `devtoys-app` 标签。

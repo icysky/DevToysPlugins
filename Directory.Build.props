@@ -9,7 +9,21 @@
     <RepositoryUrl>https://github.com/icysky/DevToysPlugins.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <Copyright>Copyright (c) 2026 icysky</Copyright>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <!--
+      0BSD（BSD Zero Clause）：OSI 认证里最宽松的许可证，可任意使用/修改/分发，
+      连保留版权声明都不要求。若想保留“必须署名”，改成 MIT 即可。
+    -->
+    <PackageLicenseExpression>0BSD</PackageLicenseExpression>
   </PropertyGroup>
+
+  <!-- 每个 nupkg 都带上第三方声明与相应许可证全文（随包分发的 DLL 需要） -->
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)THIRD-PARTY-NOTICES.md"
+          Pack="true" PackagePath="\" Visible="false" />
+    <None Include="$(MSBuildThisFileDirectory)licenses\*.txt"
+          Pack="true" PackagePath="licenses\" Visible="false" />
+    <None Include="$(MSBuildThisFileDirectory)licenses\*.md"
+          Pack="true" PackagePath="licenses\" Visible="false" />
+  </ItemGroup>
 
 </Project>
