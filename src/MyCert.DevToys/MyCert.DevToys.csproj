@@ -14,7 +14,7 @@
     <AssemblyName>MyCert.DevToys</AssemblyName>
     <!-- DevToys 扩展元数据 -->
     <IsPackable>true</IsPackable>
-    <Version>1.0.0.4</Version>
+    <Version>1.0.0.5</Version>
     <Title>DevToys Certificate Generator</Title>
     <Description>Generate test X.509 certificates (RSA / SM2) for OFD signing, HTTPS and code signing.</Description>
     <Authors>MyCert</Authors>
