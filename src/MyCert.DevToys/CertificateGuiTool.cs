@@ -531,7 +531,7 @@ internal sealed class CertificateGuiTool : IGuiTool
 
         IUIElement subjectCard = Card(
             "颁发给（Subject）",
-            LabeledField("通用名称 CN", _subjectCnInput),
+            LabeledFieldWithRole("通用名称 CN", "使用者 Subject", _subjectCnInput),
             LabeledField("组织 O", CreateTextField("mcert-subject-o", _subjectO, text => _subjectO = text)),
             LabeledField("部门 OU", CreateTextField("mcert-subject-ou", _subjectOu, text => _subjectOu = text)),
             LabeledField("国家/地区 C（ISO 3166）", GUI.SelectDropDownList("mcert-subject-c")
@@ -547,7 +547,7 @@ internal sealed class CertificateGuiTool : IGuiTool
 
         IUIElement issuerCard = Card(
             "颁发者（Issuer，自签 CA）",
-            LabeledField("通用名称 CN", _issuerCnInput),
+            LabeledFieldWithRole("通用名称 CN", "颁发者 Issuer", _issuerCnInput),
             LabeledField("组织 O", CreateTextField("mcert-issuer-o", _issuerO, text => _issuerO = text)),
             LabeledField("部门 OU", CreateTextField("mcert-issuer-ou", _issuerOu, text => _issuerOu = text)),
             LabeledField("国家/地区 C（ISO 3166）", GUI.SelectDropDownList("mcert-issuer-c")
@@ -705,6 +705,22 @@ internal sealed class CertificateGuiTool : IGuiTool
         return GUI.Stack().Vertical().SmallSpacing().WithChildren(
             GUI.Label().Text(label),
             input);
+    }
+
+    /// <summary>
+    /// 带右侧角色标注的字段行。「使用者 / 颁发者」两张卡片里都有「通用名称 CN」，
+    /// 卡片滚出视野后光看标签区分不开，所以在输入框右侧补一个 Caption 级角色标识。
+    /// </summary>
+    private static IUIElement LabeledFieldWithRole(string label, string role, IUIElement input)
+    {
+        return GUI.Stack().Vertical().SmallSpacing().WithChildren(
+            GUI.Label().Text(label),
+            GUI.Grid()
+                .Columns(GUI.Fraction(1), UIGridLength.Auto)
+                .ColumnMediumSpacing()
+                .Cells(
+                    GUI.Cell(0, 0, 1, 1, input),
+                    GUI.Cell(0, 1, 1, 1, GUI.Label().Style(UILabelStyle.Caption).Text(role))));
     }
 
     private IUISingleLineTextInput CreateTextField(string id, string value, Action<string> setter)
