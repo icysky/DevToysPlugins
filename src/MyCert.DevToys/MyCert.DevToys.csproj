@@ -23,8 +23,7 @@
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <!-- 由下方 IncludeAllFilesInTargetDir 统一打包，避免默认 build output 与自定义 lib 重复 -->
     <IncludeBuildOutput>false</IncludeBuildOutput>
-    <!-- nuget.org 要求声明许可证，否则发布页显示“无许可证”并给出 License missing 警告 -->
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <!-- 许可证 / 仓库地址 / 版权统一在仓库根 Directory.Build.props 里声明 -->
     <!-- MEF 依赖通过反射加载，禁止 trimming -->
     <PublishTrimmed>false</PublishTrimmed>
     <EnableDynamicLoading>true</EnableDynamicLoading>

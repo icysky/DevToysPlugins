@@ -109,13 +109,18 @@ powershell -ExecutionPolicy Bypass -File .\src\MyCert.DevToys\publish-nuget.ps1
 > 否则 nuget.org 页面会显示「无许可证」；`pack.ps1` 会就此给出警告。
 > DevToys 扩展管理器靠 nuspec 的 `devtoys-app` 标签发现插件（已在各 csproj 配好）。
 
-## 推送到 GitHub
+## 仓库与推送
+
+- 源码仓库：<https://github.com/icysky/DevToysPlugins>
+- 已配置的远程：`origin`（分支 `main`）
 
 ```powershell
-# 先在 GitHub 上建空仓库（不要初始化 README/.gitignore）
-git remote add origin https://github.com/<user>/<repo>.git
-git push -u origin main
+git push            # 日常提交后推送
+git push --tags     # 发布用（配合 .github/workflows/publish.yml）
 ```
+
+包的元数据（license / 项目主页 / 仓库地址 / 版权）统一定义在仓库根的
+`Directory.Build.props`，各插件 csproj 只需声明 `PackageId`、`Version`、`Description` 等差异项。
 
 ## 环境
 

@@ -1,0 +1,15 @@
+<Project>
+
+  <!--
+    所有插件共用的 NuGet 元数据。
+    项目级设置（如 <Authors>、<Description>）会覆盖这里的值。
+  -->
+  <PropertyGroup>
+    <PackageProjectUrl>https://github.com/icysky/DevToysPlugins</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/icysky/DevToysPlugins.git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <Copyright>Copyright (c) 2026 icysky</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+  </PropertyGroup>
+
+</Project>

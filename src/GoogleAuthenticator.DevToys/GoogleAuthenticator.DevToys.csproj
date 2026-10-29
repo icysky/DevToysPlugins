@@ -18,7 +18,6 @@
     <Authors>GoogleAuthenticator</Authors>
     <PackageId>GoogleAuthenticator.DevToys</PackageId>
     <PackageTags>devtoys-app</PackageTags>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <!-- 由 IncludeAllFilesInTargetDir 统一打包，避免默认 build output 与自定义 lib 重复 -->
     <IncludeBuildOutput>false</IncludeBuildOutput>
