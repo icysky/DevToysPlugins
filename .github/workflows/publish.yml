@@ -41,8 +41,11 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          # global.json pins 10.0.403 with rollForward=latestFeature
-          dotnet-version: '10.0.x'
+          # 10.0.x: SDK used to build (global.json pins 10.0.403, rollForward=latestFeature)
+          # 8.0.x : runtime required to *run* the net8.0 smoke tests and plugins
+          dotnet-version: |
+            10.0.x
+            8.0.x
 
       - name: Build solution
         shell: powershell
