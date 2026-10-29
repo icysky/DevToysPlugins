@@ -67,19 +67,6 @@ powershell -ExecutionPolicy Bypass -File .\src\MyCert.DevToys\pack.ps1 -Install
 - 依赖各插件自己的 `pack.ps1`，因此包结构校验（`lib/<tfm>/<id>.dll`、不得含宿主程序集、`devtoys-app` 标签）仍然生效。
 - 脚本为纯 ASCII：PowerShell 5.1 会把无 BOM 的脚本按 ANSI 解析，中文会导致乱码甚至语法错误。
 
-## 仓库与推送
-
-- 源码仓库：<https://github.com/icysky/DevToysPlugins>
-- 已配置的远程：`origin`（分支 `main`）
-
-```powershell
-git push            # 日常提交后推送
-git push --tags     # 发布用（配合 .github/workflows/publish.yml）
-```
-
-包的元数据（license / 项目主页 / 仓库地址 / 版权）统一定义在仓库根的
-`Directory.Build.props`，各插件 csproj 只需声明 `PackageId`、`Version`、`Description` 等差异项。
-
 ## 环境
 
 - DevToys **2.0.9-preview**（`DevToys.Api 2.0.9-preview`，宿主是**自包含 .NET 8** 应用，`includedFrameworks` 8.0.x）

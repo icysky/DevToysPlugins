@@ -125,17 +125,20 @@ jobs:
           $tag = '${{ github.ref_name }}'
           $files = @(Get-ChildItem artifacts -Filter *.nupkg | ForEach-Object { $_.FullName })
           Write-Host "release tag: $tag, files: $($files.Count)"
-          gh release view $tag 2>$null | Out-Null
-          if ($LASTEXITCODE -eq 0) {
-            Write-Host "release exists, uploading with --clobber"
+
+          # 不要对 gh 用 2>$null / 2>&1：GitHub 的 powershell 包装把 $ErrorActionPreference
+          # 设为 Stop，原生命令的 stderr 一旦被重定向就变成终止性错误，脚本会直接中断。
+          # 这里只靠 $LASTEXITCODE 判断：先尝试创建，失败（通常是 Release 已存在）则改为覆盖上传。
+          gh release create $tag @files `
+            --title $tag `
+            --latest `
+            --notes "NuGet: GmCrypto.DevToys / MyCert.DevToys / GoogleAuthenticator.DevToys / ChineseIpsum.DevToys"
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "gh release create returned $LASTEXITCODE, trying upload --clobber"
             gh release upload $tag @files --clobber
           }
-          else {
-            gh release create $tag @files `
-              --title $tag `
-              --latest `
-              --notes "NuGet: GmCrypto.DevToys / MyCert.DevToys / GoogleAuthenticator.DevToys / ChineseIpsum.DevToys"
-          }
+
           if ($LASTEXITCODE -ne 0) {
             Write-Host "::error::gh release failed ($LASTEXITCODE)"
             exit $LASTEXITCODE
