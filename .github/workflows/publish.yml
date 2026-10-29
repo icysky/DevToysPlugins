@@ -53,24 +53,24 @@ jobs:
           dotnet build DevToysPlugins.slnx -c Release --nologo
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      # 三个套件各自一步：哪一步红就直接指明是哪个 suite，日志也不会互相淹没
-      - name: Smoke tests (GmCrypto)
+      # 每个套件用子进程跑（run.ps1 里有 exit，同会话调用会连带终止调用方），
+      # 失败时把输出尾巴写进 ::error:: 注解——注解可通过公开 API 读取，便于远程排障。
+      - name: Smoke tests
         shell: powershell
         run: |
-          ./tools/GmCrypto.Smoke/run.ps1
-          if ($LASTEXITCODE -ne 0) { Write-Host "::error::GmCrypto.Smoke failed ($LASTEXITCODE)"; exit $LASTEXITCODE }
-
-      - name: Smoke tests (ChineseIpsum)
-        shell: powershell
-        run: |
-          ./tools/ChineseIpsum.Smoke/run.ps1
-          if ($LASTEXITCODE -ne 0) { Write-Host "::error::ChineseIpsum.Smoke failed ($LASTEXITCODE)"; exit $LASTEXITCODE }
-
-      - name: Smoke tests (GoogleAuthenticator)
-        shell: powershell
-        run: |
-          ./tools/GoogleAuthenticator.Smoke/run.ps1
-          if ($LASTEXITCODE -ne 0) { Write-Host "::error::GoogleAuthenticator.Smoke failed ($LASTEXITCODE)"; exit $LASTEXITCODE }
+          $suites = @('GmCrypto.Smoke', 'ChineseIpsum.Smoke', 'GoogleAuthenticator.Smoke')
+          foreach ($suite in $suites) {
+            Write-Host "=== $suite"
+            $out = & powershell -NoProfile -ExecutionPolicy Bypass -File "./tools/$suite/run.ps1" 2>&1 | Out-String
+            $code = $LASTEXITCODE
+            Write-Host $out
+            if ($code -ne 0) {
+              $tail = ($out -split "`r?`n" | Where-Object { $_.Trim() } | Select-Object -Last 12) -join ' | '
+              Write-Host "::error::$suite failed (exit $code): $tail"
+              Write-Host "::error::runtimes: $((& dotnet --list-runtimes) -join ' | ')"
+              exit $code
+            }
+          }
 
       - name: Pack all plugins
         shell: powershell
