@@ -121,9 +121,6 @@ powershell -ExecutionPolicy Bypass -File .\src\MyCert.DevToys\pack.ps1 -Install
 随包分发的第三方组件仍遵循各自许可证（BouncyCastle = MIT、ZXing.Net = Apache-2.0 等），
 详见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)；相应许可证全文会随 nupkg 一起发布到 `licenses/` 目录。
 
-> 如果你想保留「必须署名」这一条，把 `Directory.Build.props` 里的
-> `PackageLicenseExpression` 改成 `MIT`、并把 `LICENSE` 换成 MIT 文本即可。
-
 ## 说明
 
 - 这三个插件均为个人自用；扩展本质是 NuGet 包，随包带上 `devtoys-app` 标签。
