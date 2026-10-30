@@ -35,7 +35,16 @@ DevToysPlugins/
    └─ GmCrypto.Smoke/                # 国密算法 + 共享层回归（29 项，net8.0）
 ```
 
-每个插件目录都是自包含的：`csproj` + `pack.ps1` + `README.md` + 源码 + 资源。
+每个插件目录里有两份文档：
+
+| 文件 | 是否随 nupkg 发布 | 内容 |
+| --- | --- | --- |
+| `README.md` | **是**（nuget.org 页面上显示的就是它） | 面向使用者：功能、用法、安装、许可 |
+| `DEVELOPMENT.md` | 否 | 面向维护者：构建、打包、发布、踩坑与内部约定 |
+
+改文档时注意别把构建/发布说明写进 `README.md`，否则会原样出现在 nuget.org 页面上。
+
+每个插件目录都是自包含的：`csproj` + `pack.ps1` + `README.md` + `DEVELOPMENT.md` + 源码 + 资源。
 
 ## 常用命令
 
