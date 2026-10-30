@@ -21,6 +21,9 @@ artifacts/
 # 工具/助手本地数据
 .codebuddy/
 
+# VS 调试启动配置（含本机 DevToys 绝对路径，因人而异，不入库）
+**/Properties/launchSettings.json
+
 # 操作系统
 Thumbs.db
 .DS_Store

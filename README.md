@@ -82,6 +82,44 @@ powershell -ExecutionPolicy Bypass -File .\src\MyCert.DevToys\pack.ps1 -Install
 - 依赖各插件自己的 `pack.ps1`，因此包结构校验（`lib/<tfm>/<id>.dll`、不得含宿主程序集、`devtoys-app` 标签）仍然生效。
 - 脚本为纯 ASCII：PowerShell 5.1 会把无 BOM 的脚本按 ANSI 解析，中文会导致乱码甚至语法错误。
 
+## 在 Visual Studio 里调试（F5）
+
+DevToys 只从 `%LOCALAPPDATA%\DevToys-preview\Plugins\<PackageId>\lib\<tfm>` 加载插件，
+所以**不是**把插件当独立程序启动，而是"部署到插件目录 + 启动 DevToys 宿主"。
+
+仓库已经配好这条链路：
+
+1. **首次准备**：任一插件的 `pack.ps1 -Install` 跑一次，建立插件目录（已有安装可跳过）。
+2. VS 打开 `DevToysPlugins.slnx`，把某个插件项目设为启动项目。
+3. 调试目标下拉里选 **`DevToys (F5)`**（来自该项目的 `Properties/launchSettings.json`），按 **F5**。
+4. 编译 → 自动把 Debug 产物（含 `.pdb`）同步到插件目录 → 启动 DevToys → 打开对应工具 → 断点命中。
+
+自动同步由 `Directory.Build.props` 里的 `DeployToDevToysForDebugging` 目标完成：
+只在 `Debug` 配置、且插件目录已存在时执行；同步前会 `taskkill` 掉正在运行的 DevToys（否则 DLL 被占用）。
+构建输出里会看到一行 `[DevToys] 已同步调试产物到 ...` 作为确认。
+
+注意事项：
+
+- **DevToys 只在启动时加载插件**，改完代码必须重新 F5（不支持热重载 / 编辑并继续）。
+- 视图是**首次打开工具时**才创建的，断点要下在打开工具后会走到的代码里。
+- 若 VS 里没有 `DevToys (F5)` 这个调试目标：该文件含本机绝对路径，已被 `.gitignore` 排除，
+  在对应项目的 `Properties\launchSettings.json` 里按下面模板重建（路径换成你自己的安装位置）：
+
+```json
+{
+  "profiles": {
+    "DevToys (F5)": {
+      "commandName": "Executable",
+      "executablePath": "C:\\Users\\<你>\\AppData\\Local\\Programs\\DevToys Preview\\DevToys.exe",
+      "workingDirectory": "C:\\Users\\<你>\\AppData\\Local\\Programs\\DevToys Preview"
+    }
+  }
+}
+```
+
+- 备选方案：先 `deploy-all.ps1` 或 `pack.ps1 -Install`，再在 VS 里 **调试 → 附加到进程** 选 `DevToys.exe`
+  （进程类型选"托管 (.NET Core)"），然后在 DevToys 里打开工具即可命中断点。
+
 ## 环境
 
 - DevToys **2.0.9-preview**（`DevToys.Api 2.0.9-preview`，宿主是**自包含 .NET 8** 应用，`includedFrameworks` 8.0.x）

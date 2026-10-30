@@ -26,4 +26,44 @@
           Pack="true" PackagePath="licenses\" Visible="false" />
   </ItemGroup>
 
+  <!--
+    Visual Studio 里 F5 调试用：
+    DevToys 只从 %LOCALAPPDATA%\DevToys-preview\Plugins\<PackageId>\lib\<tfm> 加载插件 DLL，
+    所以 Debug 构建后把产物（含 .pdb）同步过去，F5 启动 DevToys 时断点才能命中。
+
+    - 只在 Debug 且该插件已安装过（目录存在）时执行
+    - 先结束 DevToys，否则 DLL 被占用导致复制失败
+    - 项目里的 Properties/launchSettings.json 已把 F5 目标指向 DevToys.exe
+  -->
+  <Target Name="DeployToDevToysForDebugging"
+          AfterTargets="Build"
+          Condition="'$(Configuration)' == 'Debug'">
+    <!-- PackageId 在 props 导入时还没定义，必须放到 Target 里计算 -->
+    <PropertyGroup>
+      <_DevToysPackageId>$(PackageId)</_DevToysPackageId>
+      <_DevToysPackageId Condition="'$(_DevToysPackageId)' == ''">$(AssemblyName)</_DevToysPackageId>
+      <_DevToysPluginDir>$(LOCALAPPDATA)\DevToys-preview\Plugins\$(_DevToysPackageId)</_DevToysPluginDir>
+      <_DevToysTargetDir>$(_DevToysPluginDir)\lib\$(TargetFramework)</_DevToysTargetDir>
+    </PropertyGroup>
+
+    <Exec Command="taskkill /IM DevToys.exe /F"
+          Condition="Exists('$(_DevToysPluginDir)')"
+          ContinueOnError="true"
+          StandardOutputImportance="Low"
+          StandardErrorImportance="Low" />
+
+    <ItemGroup Condition="Exists('$(_DevToysPluginDir)')">
+      <_DevToysDeployFiles Include="$(TargetDir)**\*.*" />
+    </ItemGroup>
+
+    <Copy SourceFiles="@(_DevToysDeployFiles)"
+          DestinationFiles="@(_DevToysDeployFiles->'$(_DevToysTargetDir)\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true"
+          ContinueOnError="true" />
+
+    <Message Importance="high"
+             Condition="Exists('$(_DevToysPluginDir)')"
+             Text="[DevToys] 已同步调试产物到 $(_DevToysTargetDir)（按 F5 启动 DevToys 即可命中断点）" />
+  </Target>
+
 </Project>
