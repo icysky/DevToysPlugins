@@ -8,7 +8,7 @@
     <RootNamespace>ChineseIpsum.DevToys</RootNamespace>
     <AssemblyName>ChineseIpsum.DevToys</AssemblyName>
     <IsPackable>true</IsPackable>
-    <Version>1.0.0.1</Version>
+    <Version>1.0.0.2</Version>
     <Title>DevToys Chinese Ipsum</Title>
     <Description>Chinese Lorem Ipsum generator using excerpts from the four great classical novels.</Description>
     <Authors>ChineseIpsum</Authors>

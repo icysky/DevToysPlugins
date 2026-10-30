@@ -15,7 +15,7 @@
     <AssemblyName>GmCrypto.DevToys</AssemblyName>
     <!-- DevToys 扩展元数据 -->
     <IsPackable>true</IsPackable>
-    <Version>1.0.1.1</Version>
+    <Version>1.0.1.2</Version>
     <Title>DevToys GM Crypto</Title>
     <Description>SM2/SM3/SM4 国密工具箱：摘要（文本/文件）、SM4 加解密、SM2 签名验签与加解密。</Description>
     <Authors>GmCrypto</Authors>

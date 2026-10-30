@@ -129,10 +129,20 @@ jobs:
           # 不要对 gh 用 2>$null / 2>&1：GitHub 的 powershell 包装把 $ErrorActionPreference
           # 设为 Stop，原生命令的 stderr 一旦被重定向就变成终止性错误，脚本会直接中断。
           # 这里只靠 $LASTEXITCODE 判断：先尝试创建，失败（通常是 Release 已存在）则改为覆盖上传。
+          # Release 说明取自 annotated tag 的注解（git tag -a 的 message），
+          # 没有注解（轻量 tag 或 workflow_dispatch）时退回默认文案。
+          $notes = (git tag -l --format='%(contents)' $tag | Out-String).Trim()
+          if (-not $notes) {
+            $notes = "NuGet: GmCrypto.DevToys / MyCert.DevToys / GoogleAuthenticator.DevToys / ChineseIpsum.DevToys"
+          }
+
+          Write-Host "release notes:"
+          Write-Host $notes
+
           gh release create $tag @files `
             --title $tag `
             --latest `
-            --notes "NuGet: GmCrypto.DevToys / MyCert.DevToys / GoogleAuthenticator.DevToys / ChineseIpsum.DevToys"
+            --notes $notes
 
           if ($LASTEXITCODE -ne 0) {
             Write-Host "gh release create returned $LASTEXITCODE, trying upload --clobber"
