@@ -37,6 +37,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # 取回 tag 对象，否则 annotated tag 会退化成轻量 tag，
+          # `git tag -l --format='%(contents)'` 只能拿到 commit message 而不是 tag 注解。
+          fetch-tags: true
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
