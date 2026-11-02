@@ -37,12 +37,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          # 需要真实的 tag 对象（annotated tag 的注解要作为 Release 说明）。
-          # 注意：不能用 fetch-tags + 默认 fetch-depth=1，两者会冲突并报
-          # "Cannot fetch both <sha> and refs/tags/<tag> to refs/tags/<tag>"。
-          # 仓库很小，直接完整拉取最简单可靠。
-          fetch-depth: 0
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -135,9 +129,16 @@ jobs:
           # 不要对 gh 用 2>$null / 2>&1：GitHub 的 powershell 包装把 $ErrorActionPreference
           # 设为 Stop，原生命令的 stderr 一旦被重定向就变成终止性错误，脚本会直接中断。
           # 这里只靠 $LASTEXITCODE 判断：先尝试创建，失败（通常是 Release 已存在）则改为覆盖上传。
-          # Release 说明取自 annotated tag 的注解（git tag -a 的 message），
-          # 没有注解（轻量 tag 或 workflow_dispatch）时退回默认文案。
-          $notes = (git tag -l --format='%(contents)' $tag | Out-String).Trim()
+          # Release 说明取自 annotated tag 的注解（git tag -a 的 message）。
+          # 注意：不能用本地 git 读——actions/checkout 对 tag 事件是按 SHA 拉成
+          # 轻量 tag（refspec 是 +<sha>:refs/tags/<tag>），%(contents) 只会拿到提交信息。
+          # 所以这里走 API 取 tag 对象；拿不到（轻量 tag / workflow_dispatch）时用默认文案。
+          $notes = ''
+          $tagSha = (gh api "repos/${{ github.repository }}/git/ref/tags/$tag" --jq .object.sha)
+          if ($LASTEXITCODE -eq 0 -and $tagSha) {
+            $notes = (gh api "repos/${{ github.repository }}/git/tags/$tagSha" --jq .message)
+          }
+
           if (-not $notes) {
             $notes = "NuGet: GmCrypto.DevToys / MyCert.DevToys / GoogleAuthenticator.DevToys / ChineseIpsum.DevToys"
           }
