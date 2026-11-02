@@ -46,8 +46,10 @@
       <_DevToysTargetDir>$(_DevToysPluginDir)\lib\$(TargetFramework)</_DevToysTargetDir>
     </PropertyGroup>
 
+    <!-- DevToys 没在跑时 taskkill 返回 128，用 IgnoreExitCode 避免刷 MSB3073 警告 -->
     <Exec Command="taskkill /IM DevToys.exe /F"
           Condition="Exists('$(_DevToysPluginDir)')"
+          IgnoreExitCode="true"
           ContinueOnError="true"
           StandardOutputImportance="Low"
           StandardErrorImportance="Low" />

@@ -370,6 +370,7 @@ internal sealed class AuthenticatorGuiTool : IGuiTool
         [
             GUI.Button($"gauth-copy-{id}").Text("复制").OnClick(() => CopyAsync(row)),
             row.NextButton,
+            GUI.Button($"gauth-migrate-{id}").Text("迁移").OnClick(() => MigrateAsync(row)),
             GUI.Button($"gauth-edit-{id}").Text("编辑").OnClick(() => EditAsync(row)),
             GUI.Button($"gauth-delete-{id}").Text("删除").OnClick(() => DeleteAsync(row))
         ];
@@ -1072,6 +1073,8 @@ internal sealed class AuthenticatorGuiTool : IGuiTool
 
     private ValueTask AdvanceHotpAsync(AccountRow row) => AdvanceHotpAsync(row.Account);
 
+    private ValueTask MigrateAsync(AccountRow row) => MigrateAsync(row.Account);
+
     private async ValueTask CopyAsync(OtpAccount account)
     {
         try
@@ -1119,6 +1122,75 @@ internal sealed class AuthenticatorGuiTool : IGuiTool
             _store.Accounts.RemoveAt(index);
             PersistAndRefresh();
             ShowSuccess($"已删除「{account.GetDisplayTitle()}」。");
+        }
+    }
+
+    /// <summary>
+    /// 单个账号迁移：把该账号重新输出为 otpauth 链接 + 二维码，方便在另一台设备上重新绑定，
+    /// 不必为了搬一个令牌而导出/导入整份备份。
+    /// </summary>
+    private async ValueTask MigrateAsync(OtpAccount account)
+    {
+        string uri = OtpAuthUri.Build(account);
+
+        Image<Rgba32> qrCode;
+        try
+        {
+            // 模块 5px：25×25 的码约 165px，手机扫足够，又不会把对话框撑高
+            qrCode = QrCodeRenderer.Render(uri, moduleSize: 5);
+        }
+        catch (Exception ex)
+        {
+            ShowError($"生成二维码失败：{ex.Message}");
+            return;
+        }
+
+        IUIImageViewer viewer = GUI.ImageViewer($"gauth-migrate-qr-{account.Id}");
+        GUI.WithImage(viewer, qrCode, disposeAutomatically: true);
+
+        string hint = account.Type == OtpType.Hotp
+            ? "扫码后新设备从当前计数器继续计算；迁移成功后请立刻停用旧设备上的这个账号，避免计数器错位。"
+            : "扫码后新设备会得到同一把密钥，两台设备的验证码完全一致；确认新设备可用后，建议从旧设备删除该账号。";
+
+        string meta = account.GetMetaDisplay()
+            + (account.Type == OtpType.Hotp ? $" · 计数器 {account.Counter}" : string.Empty);
+
+        DialogSession session = await OpenDialogAsync(s => (
+            GUI.Stack().Vertical().MediumSpacing().WithChildren(
+                GUI.Label().Text($"迁移「{account.GetDisplayTitle()}」").Style(UILabelStyle.BodyStrong),
+                // 左二维码、右信息：避免纵向堆叠把对话框撑出可视区域
+                GUI.Grid()
+                    .Columns(UIGridLength.Auto, GUI.Fraction(1))
+                    .ColumnLargeSpacing()
+                    .Cells(
+                        GUI.Cell(0, 0, 1, 1, viewer),
+                        GUI.Cell(0, 1, 1, 1, GUI.Stack().Vertical().SmallSpacing().WithChildren(
+                            GUI.Label().Text("用另一台设备的验证器扫码即可添加，等价于重新绑定同一个令牌。")
+                                .WrapIfNeeded()
+                                .Style(UILabelStyle.Caption),
+                            GUI.Label().Text(meta).Style(UILabelStyle.Caption),
+                            Field(
+                                "或复制 otpauth 链接",
+                                GUI.SingleLineTextInput($"gauth-migrate-uri-{account.Id}")
+                                    .ReadOnly()
+                                    .HideCommandBar()
+                                    .Text(uri)),
+                            GUI.Label().Text(hint).WrapIfNeeded().Style(UILabelStyle.Caption))))),
+            GUI.Stack().Horizontal().SmallSpacing().WithChildren(
+                GUI.Button("gauth-migrate-copy")
+                    .AccentAppearance()
+                    .Text("复制链接")
+                    .OnClick(async () =>
+                    {
+                        await _clipboard.SetClipboardTextAsync(uri);
+                        s.Close("copied");
+                    }),
+                GUI.Button("gauth-migrate-close").Text("关闭").OnClick(() => s.Close(null)))));
+
+        object? result = await session.Result;
+        if (result is string)
+        {
+            ShowSuccess($"已复制「{account.GetDisplayTitle()}」的 otpauth 链接。");
         }
     }
 

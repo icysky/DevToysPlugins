@@ -152,6 +152,54 @@ try
     Check("任意文本二维码也能识别", () => QrScanner.Decode(Helpers.RenderQrPng("hello")) == "hello");
     Check("非二维码图片返回 null", () => QrScanner.Decode(Helpers.RenderGradientPng()) is null);
 
+    // ------------------------------------------------------------------ 单账号迁移
+    Section("单账号迁移（otpauth 链接 + 二维码）");
+    OtpAccount migrateSource = new()
+    {
+        Type = OtpType.Totp,
+        Issuer = "阿里云",
+        Label = "ops@example.com",
+        Secret = "JBSWY3DPEHPK3PXP",
+        Digits = 8,
+        Period = 60,
+        Algorithm = OtpAlgorithm.Sha256
+    };
+    string migrateUri = OtpAuthUri.Build(migrateSource);
+    Check("链接以 otpauth://totp/ 开头", () => migrateUri.StartsWith("otpauth://totp/", StringComparison.Ordinal));
+    Check("中文 issuer 已转义成 ASCII", () => migrateUri.IndexOf('阿') < 0 && migrateUri.Contains("issuer=", StringComparison.Ordinal));
+    Check("链接可被自己解析回来", () =>
+    {
+        OtpAccount back = OtpAuthUri.Parse(migrateUri);
+        return back.Issuer == migrateSource.Issuer
+               && back.Label == migrateSource.Label
+               && back.Secret == migrateSource.Secret
+               && back.Digits == migrateSource.Digits
+               && back.Period == migrateSource.Period
+               && back.Algorithm == migrateSource.Algorithm
+               && back.Type == migrateSource.Type;
+    });
+    Check("生成的二维码能被扫码器读回原链接", () =>
+    {
+        using var image = QrCodeRenderer.Render(migrateUri);
+        return QrScanner.Decode(image) == migrateUri;
+    });
+    Check("二维码图不少于 200px 且为正方形", () =>
+    {
+        using var image = QrCodeRenderer.Render(migrateUri);
+        return image.Width == image.Height && image.Width >= 200;
+    });
+    Check("HOTP 迁移链接带 counter", () =>
+    {
+        OtpAccount hotpSource = migrateSource.Clone();
+        hotpSource.Type = OtpType.Hotp;
+        hotpSource.Counter = 17;
+        string hotpLink = OtpAuthUri.Build(hotpSource);
+        return hotpLink.StartsWith("otpauth://hotp/", StringComparison.Ordinal)
+               && OtpAuthUri.Parse(hotpLink).Counter == 17;
+    });
+    CheckThrows<ArgumentException>("空内容拒绝渲染二维码",
+        () => QrCodeRenderer.Render("  "));
+
     // ------------------------------------------------------------------ 备份文件
     Section("备份文件（.gauth）");
     List<OtpAccount> samples = [parsed, wide];
@@ -318,6 +366,7 @@ try
     MethodInfo deleteAsync = RequireMethod("DeleteAsync", typeof(OtpAccount));
     MethodInfo scanAsync = RequireMethod("ScanAsync");
     MethodInfo exportAsync = RequireMethod("ExportAsync");
+    MethodInfo migrateAsync = RequireMethod("MigrateAsync", typeof(OtpAccount));
     MethodInfo promptPassword = RequireMethod("PromptPasswordAsync", typeof(bool));
 
     Section("行控件实例稳定性（回归：重建行不得替换元素实例）");
@@ -387,6 +436,7 @@ try
     await ExerciseDialogAsync("删除确认", () => ((ValueTask)deleteAsync.Invoke(tool, [firstAccount])!).AsTask());
     await ExerciseDialogAsync("扫码导入", () => ((ValueTask)scanAsync.Invoke(tool, [])!).AsTask());
     await ExerciseDialogAsync("导出备份", () => ((ValueTask)exportAsync.Invoke(tool, [])!).AsTask());
+    await ExerciseDialogAsync("单账号迁移（二维码 + 链接）", () => ((ValueTask)migrateAsync.Invoke(tool, [firstAccount])!).AsTask());
     await ExerciseDialogAsync("密码输入", () => (Task)promptPassword.Invoke(tool, [false])!);
 
     Console.WriteLine();
