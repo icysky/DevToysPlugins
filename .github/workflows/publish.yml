@@ -133,10 +133,12 @@ jobs:
           # 注意：不能用本地 git 读——actions/checkout 对 tag 事件是按 SHA 拉成
           # 轻量 tag（refspec 是 +<sha>:refs/tags/<tag>），%(contents) 只会拿到提交信息。
           # 所以这里走 API 取 tag 对象；拿不到（轻量 tag / workflow_dispatch）时用默认文案。
+          # 注意 Out-String：gh 的逐行输出会被 PowerShell 收成字符串数组，
+          # 直接传给 --notes 会变成多个参数（gh 报 “accepts at most 1 arg”）。
           $notes = ''
-          $tagSha = (gh api "repos/${{ github.repository }}/git/ref/tags/$tag" --jq .object.sha)
+          $tagSha = (gh api "repos/${{ github.repository }}/git/ref/tags/$tag" --jq .object.sha | Out-String).Trim()
           if ($LASTEXITCODE -eq 0 -and $tagSha) {
-            $notes = (gh api "repos/${{ github.repository }}/git/tags/$tagSha" --jq .message)
+            $notes = (gh api "repos/${{ github.repository }}/git/tags/$tagSha" --jq .message | Out-String).Trim()
           }
 
           if (-not $notes) {
