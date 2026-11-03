@@ -19,6 +19,7 @@ public static class OutputReadmeBuilder
         bool exportedCer,
         bool exportedPem,
         bool exportedIssuerCa,
+        bool exportedFullChain,
         DateTime generatedAt)
     {
         var builder = new StringBuilder();
@@ -69,6 +70,14 @@ public static class OutputReadmeBuilder
                 builder,
                 baseName + "_issuer_ca.cer",
                 "颁发者 CA 证书（只含公钥）。用于构建/验证证书链，导入受信任根时选这个文件。");
+        }
+
+        if (exportedFullChain)
+        {
+            AppendFile(
+                builder,
+                baseName + ".fullchain.pem",
+                "证书链：终端证书 + 颁发者 CA，直接对应 nginx 的 ssl_certificate（无需再手工拼接）。");
         }
 
         string readmeFileName = $"ReadMe_{baseName}.txt";

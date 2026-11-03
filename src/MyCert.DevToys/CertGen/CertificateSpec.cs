@@ -61,6 +61,9 @@ public sealed class GeneratedCertificate : IDisposable
         KeyDescription = keyDescription;
         SignatureAlgorithm = signatureAlgorithm;
         WindowsCertificate = windowsCertificate;
+        CertificateChainPem = PemFormatter.Concat(
+            certificatePem,
+            PemFormatter.Create("CERTIFICATE", issuerCertificateDer));
     }
 
     /// <summary>终端实体证书 DER。</summary>
@@ -77,6 +80,13 @@ public sealed class GeneratedCertificate : IDisposable
 
     /// <summary>私钥 PEM（PKCS#8）。</summary>
     public string PrivateKeyPem { get; }
+
+    /// <summary>
+    /// 证书链 PEM：终端证书 + 颁发者 CA，各块以 LF 结尾依次拼接。
+    /// 直接对应 nginx/Tongsuo 的 <c>ssl_certificate</c>（fullchain）用法，
+    /// 用户不必再手工 <c>cat</c> 两个文件。
+    /// </summary>
+    public string CertificateChainPem { get; }
 
     /// <summary>密钥描述，例如 "RSA 2048 位" / "SM2 256 位（sm2p256v1）"。</summary>
     public string KeyDescription { get; }

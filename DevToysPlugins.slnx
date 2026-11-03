@@ -9,5 +9,6 @@
     <Project Path="tools/ChineseIpsum.Smoke/ChineseIpsum.Smoke.csproj" />
     <Project Path="tools/GmCrypto.Smoke/GmCrypto.Smoke.csproj" />
     <Project Path="tools/GoogleAuthenticator.Smoke/GoogleAuthenticator.Smoke.csproj" />
+    <Project Path="tools/MyCert.Smoke/MyCert.Smoke.csproj" />
   </Folder>
 </Solution>

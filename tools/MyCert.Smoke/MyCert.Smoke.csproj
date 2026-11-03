@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    证书插件的回归测试（重点覆盖 PEM 文本规范：LF、结尾换行、拼接不粘连）。
+    直接链接插件源码编译，不引用插件 dll，因此可以覆盖 internal 类型；
+    不依赖 DevToys 进程。
+
+    运行：powershell -ExecutionPolicy Bypass -File tools\MyCert.Smoke\run.ps1
+    退出码 0 = 全部通过。
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>MyCert.Smoke</RootNamespace>
+    <AssemblyName>MyCert.Smoke</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\src\MyCert.DevToys\CertGen\**\*.cs"
+             Exclude="..\..\src\MyCert.DevToys\CertGen\bin\**\*.cs;..\..\src\MyCert.DevToys\CertGen\obj\**\*.cs"
+             LinkBase="CertGen" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BouncyCastle.Cryptography" Version="2.7.0" />
+  </ItemGroup>
+
+</Project>

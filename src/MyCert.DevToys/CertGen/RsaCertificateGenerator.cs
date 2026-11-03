@@ -26,12 +26,16 @@ internal static class RsaCertificateGenerator
                 pfxBytes = cert.Export(X509ContentType.Pfx, spec.PfxPassword);
             }
 
+            byte[] certificateDer = cert.Export(X509ContentType.Cert);
+
             return new GeneratedCertificate(
-                certificateDer: cert.Export(X509ContentType.Cert),
+                certificateDer: certificateDer,
                 issuerCertificateDer: issuerCert.Export(X509ContentType.Cert),
                 pfxBytes: pfxBytes,
-                certificatePem: cert.ExportCertificatePem(),
-                privateKeyPem: subjectRsa.ExportPkcs8PrivateKeyPem(),
+                // 不用 ExportCertificatePem()：它产出 LF 但结尾不留换行，
+                // 拼证书链时会和下一个 -----BEGIN 粘成一行，nginx 报 bad end line。
+                certificatePem: PemFormatter.Create("CERTIFICATE", certificateDer),
+                privateKeyPem: PemFormatter.Create("PRIVATE KEY", subjectRsa.ExportPkcs8PrivateKey()),
                 keyDescription: CertificateAlgorithmInfo.GetKeyDescription(CertificateAlgorithm.Rsa, spec.RsaKeySize),
                 signatureAlgorithm: CertificateAlgorithmInfo.GetSignatureAlgorithm(CertificateAlgorithm.Rsa),
                 windowsCertificate: cert);

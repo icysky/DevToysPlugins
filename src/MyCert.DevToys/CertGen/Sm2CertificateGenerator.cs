@@ -61,8 +61,8 @@ internal static class Sm2CertificateGenerator
             certificateDer: cert.GetEncoded(),
             issuerCertificateDer: issuerCert.GetEncoded(),
             pfxBytes: pfxBytes,
-            certificatePem: ToPem("CERTIFICATE", cert.GetEncoded()),
-            privateKeyPem: ToPem("PRIVATE KEY", PrivateKeyInfoFactory.CreatePrivateKeyInfo(subjectKeyPair.Private).GetEncoded()),
+            certificatePem: PemFormatter.Create("CERTIFICATE", cert.GetEncoded()),
+            privateKeyPem: PemFormatter.Create("PRIVATE KEY", PrivateKeyInfoFactory.CreatePrivateKeyInfo(subjectKeyPair.Private).GetEncoded()),
             keyDescription: CertificateAlgorithmInfo.GetKeyDescription(CertificateAlgorithm.Sm2, 0),
             signatureAlgorithm: SignatureAlgorithmName,
             windowsCertificate: null);
@@ -218,18 +218,4 @@ internal static class Sm2CertificateGenerator
 
     private static DateTime ToUtc(DateTimeOffset value) => value.UtcDateTime;
 
-    private static string ToPem(string label, byte[] der)
-    {
-        var builder = new StringBuilder();
-        builder.Append("-----BEGIN ").Append(label).Append("-----\n");
-
-        string base64 = Convert.ToBase64String(der);
-        for (int i = 0; i < base64.Length; i += 64)
-        {
-            builder.Append(base64, i, Math.Min(64, base64.Length - i)).Append('\n');
-        }
-
-        builder.Append("-----END ").Append(label).Append("-----\n");
-        return builder.ToString();
-    }
 }

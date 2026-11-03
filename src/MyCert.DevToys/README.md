@@ -13,7 +13,7 @@ NuGet 包：<https://www.nuget.org/packages/MyCert.DevToys>　·　安装：DevT
 - Subject / Issuer 六项 DN（CN、O、OU、C、ST、L），国家/地区 C 使用 ISO 3166-1 下拉，默认 CN
 - KU / EKU 勾选式开关（9 个 KU、8 个 EKU，含 critical），另支持自定义 EKU OID
 - 可选 SAN（域名 / IP）
-- 导出 PFX、CER、PEM + KEY、颁发者 CA 证书，并写入 `ReadMe_<证书基名>.txt`（记录各文件用途与 PFX 密码）
+- 导出 PFX、CER、PEM + KEY、颁发者 CA 证书、**证书链 fullchain.pem**，并写入 `ReadMe_<证书基名>.txt`（记录各文件用途与 PFX 密码）
 - 「解析证书」按钮：选择 CER/CRT/PEM/PFX/P12，PFX 会弹出密码输入框；解析结果显示 DN、有效期、序列号、SHA-1、签名算法、公钥/曲线、CA、KU/EKU/SAN
 - 自动记住上次填写的全部参数（含 PFX 密码），下次打开自动恢复；数据保存在 DevToys 的 `settings.ini` 中
 - 与 MyCert WPF 版共用同一份生成实现（`../TestCertGenerator/CertGen`），参数与产物一致
@@ -106,6 +106,37 @@ certutil -delstore -user Root <指纹>
 - 这些证书**仅供测试**，自签 CA 的私钥没有任何保护，**绝不要用于生产环境**
 - 测试完成后建议按上面的「卸载」把根证书删掉，避免机器长期信任一张弱根
 - `.pfx` 与 `.key` 含私钥，不要提交到代码仓库或放到公共目录
+
+## 在 Linux（nginx / OpenSSL / Tongsuo）上使用
+
+PEM 文件统一使用 **LF 换行、且每块以换行结尾**，可以直接给 nginx / OpenSSL / Java / IIS 使用。
+（Windows 上生成也没关系——不要用记事本「另存」改写换行，记事本默认 CRLF 会破坏 PEM。）
+
+**nginx 配置**：`ssl_certificate` 需要"终端证书 + 颁发者 CA"的完整链，直接用导出的
+`<基名>.fullchain.pem` 即可，它已经按正确顺序拼好：
+
+```nginx
+ssl_certificate     /etc/nginx/certs/<基名>.fullchain.pem;   # 叶子 + CA
+ssl_certificate_key /etc/nginx/certs/<基名>.key;
+```
+
+服务端只信任私有 CA 时，把 `_issuer_ca.cer` 装到系统受信任根（见上一节）。
+
+**如果要自己拼链**，务必保证每段 PEM 之间有一个换行，否则会出现
+`-----END CERTIFICATE----------BEGIN CERTIFICATE-----` 粘连，nginx/Tongsuo 报
+`PEM_read_bio_X509_AUX() failed ... bad end line`：
+
+```bash
+# 正确写法（两个 echo 不是多余的）
+{ cat leaf.pem; echo; cat ca.pem; echo; } > chain.pem
+```
+
+用 OpenSSL 自检：
+
+```bash
+openssl x509 -in chain.pem -noout -subject -issuer   # 能解析第一张证书
+openssl verify -CAfile ca.pem leaf.pem               # 输出 ... OK 表示链是通的
+```
 
 ## 使用提示
 

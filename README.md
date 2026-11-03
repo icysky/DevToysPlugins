@@ -30,9 +30,10 @@ DevToysPlugins/
 │  ├─ ChineseIpsum.DevToys/          # 中文假文
 │  └─ GmCrypto.DevToys/              # 国密四件套（Core\ 为 GM 算法层的内联副本 + Shared\ 共享层）
 └─ tools/
-   ├─ GoogleAuthenticator.Smoke/     # 动态口令回归（102 项，net8.0）
+   ├─ GoogleAuthenticator.Smoke/     # 动态口令回归（110 项，net8.0）
    ├─ ChineseIpsum.Smoke/            # 假文生成回归（25 项，net8.0）
-   └─ GmCrypto.Smoke/                # 国密算法 + 共享层回归（29 项，net8.0）
+   ├─ GmCrypto.Smoke/                # 国密算法 + 共享层回归（29 项，net8.0）
+   └─ MyCert.Smoke/                  # 证书 PEM 规范 + 证书链回归（20 项，net8.0）
 ```
 
 每个插件目录里有两份文档：

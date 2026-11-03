@@ -156,6 +156,8 @@ internal sealed class CertificateGuiTool : IGuiTool
 
     private readonly IUISwitch _caSwitch;
 
+    private readonly IUISwitch _fullChainSwitch;
+
     private readonly IUIButton _generateButton;
 
     private readonly IUIButton _parseButton;
@@ -200,6 +202,7 @@ internal sealed class CertificateGuiTool : IGuiTool
     private bool _exportCer = true;
     private bool _exportPem = true;
     private bool _exportIssuerCer = true;
+    private bool _exportFullChain = true;
 
     public UIToolView View => _view ??= BuildView();
 
@@ -400,16 +403,19 @@ internal sealed class CertificateGuiTool : IGuiTool
         _cerSwitch = GUI.Switch("mcert-export-cer");
         _pemSwitch = GUI.Switch("mcert-export-pem");
         _caSwitch = GUI.Switch("mcert-export-ca");
+        _fullChainSwitch = GUI.Switch("mcert-export-fullchain");
 
         SetSwitchState(_pfxSwitch, _exportPfx);
         SetSwitchState(_cerSwitch, _exportCer);
         SetSwitchState(_pemSwitch, _exportPem);
         SetSwitchState(_caSwitch, _exportIssuerCer);
+        SetSwitchState(_fullChainSwitch, _exportFullChain);
 
         _pfxSwitch.OnToggle(on => { _exportPfx = on; SaveState(); });
         _cerSwitch.OnToggle(on => { _exportCer = on; SaveState(); });
         _pemSwitch.OnToggle(on => { _exportPem = on; SaveState(); });
         _caSwitch.OnToggle(on => { _exportIssuerCer = on; SaveState(); });
+        _fullChainSwitch.OnToggle(on => { _exportFullChain = on; SaveState(); });
 
         _generateButton = GUI.Button("mcert-generate")
             .AccentAppearance()
@@ -585,7 +591,11 @@ internal sealed class CertificateGuiTool : IGuiTool
             GUI.Setting("mcert-setting-pfx").Title("导出 PFX").InteractiveElement(_pfxSwitch),
             GUI.Setting("mcert-setting-cer").Title("导出 CER").InteractiveElement(_cerSwitch),
             GUI.Setting("mcert-setting-pem").Title("导出 PEM + KEY").InteractiveElement(_pemSwitch),
-            GUI.Setting("mcert-setting-ca").Title("导出颁发者 CA 证书").InteractiveElement(_caSwitch));
+            GUI.Setting("mcert-setting-ca").Title("导出颁发者 CA 证书").InteractiveElement(_caSwitch),
+            GUI.Setting("mcert-setting-fullchain")
+                .Title("导出证书链 fullchain.pem")
+                .Description("终端证书 + 颁发者 CA，直接用于 nginx 的 ssl_certificate，无需手工拼接")
+                .InteractiveElement(_fullChainSwitch));
 
         IUIElement leftTop = GUI.Stack().Vertical().LargeSpacing().WithChildren(
             basicCard,
@@ -1284,6 +1294,14 @@ internal sealed class CertificateGuiTool : IGuiTool
             Log($"已导出: {issuerCerPath}");
         }
 
+        if (_exportFullChain)
+        {
+            // 终端证书 + 颁发者 CA 依次拼接（每块 LF 结尾），对应 nginx 的 ssl_certificate fullchain
+            string chainPath = basePath + ".fullchain.pem";
+            File.WriteAllText(chainPath, generated.CertificateChainPem);
+            Log($"已导出: {chainPath}（证书链，可直接用于 nginx ssl_certificate）");
+        }
+
         string readmeFilePath = Path.Combine(
             outputDirectory,
             $"ReadMe_{Path.GetFileName(basePath)}.txt");
@@ -1297,6 +1315,7 @@ internal sealed class CertificateGuiTool : IGuiTool
             exportedCer: _exportCer,
             exportedPem: _exportPem,
             exportedIssuerCa: _exportIssuerCer,
+            exportedFullChain: _exportFullChain,
             generatedAt: DateTime.Now);
         File.WriteAllText(readmeFilePath, readmeContent, Encoding.UTF8);
         Log($"已导出: {readmeFilePath}");
@@ -1368,6 +1387,7 @@ internal sealed class CertificateGuiTool : IGuiTool
             if (state.ExportCer is not null) _exportCer = state.ExportCer.Value;
             if (state.ExportPem is not null) _exportPem = state.ExportPem.Value;
             if (state.ExportIssuerCer is not null) _exportIssuerCer = state.ExportIssuerCer.Value;
+            if (state.ExportFullChain is not null) _exportFullChain = state.ExportFullChain.Value;
         }
         catch (Exception ex)
         {
@@ -1413,7 +1433,8 @@ internal sealed class CertificateGuiTool : IGuiTool
                 ExportPfx = _exportPfx,
                 ExportCer = _exportCer,
                 ExportPem = _exportPem,
-                ExportIssuerCer = _exportIssuerCer
+                ExportIssuerCer = _exportIssuerCer,
+                ExportFullChain = _exportFullChain
             };
 
             _settingsProvider.SetSetting(StateSetting, JsonSerializer.Serialize(state));
@@ -1454,6 +1475,8 @@ internal sealed class CertificateGuiTool : IGuiTool
         public bool? ExportCer { get; set; }
         public bool? ExportPem { get; set; }
         public bool? ExportIssuerCer { get; set; }
+
+        public bool? ExportFullChain { get; set; }
     }
 
     private static bool IsOid(string value)

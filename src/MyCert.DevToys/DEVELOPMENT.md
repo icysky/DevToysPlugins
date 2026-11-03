@@ -91,6 +91,19 @@ dotnet nuget push ..\artifacts\MyCert.DevToys.1.0.0.nupkg `
   打包脚本会给出警告。发布前请先确定许可证（如 MIT/Apache-2.0）并补到 csproj。
 - 不要在 Release 构建启用 trimming/AOT，否则 MEF 反射发现不了工具。
 
+## PEM 换行与拼接（别再用 .NET 默认导出）
+
+- `ExportCertificatePem()` / `ExportPkcs8PrivateKeyPem()` 产出的是**LF 但结尾不带换行**。
+  单文件用没问题；一旦把两段 PEM 拼起来（证书链），就会出现
+  `-----END CERTIFICATE----------BEGIN CERTIFICATE-----`，nginx / Tongsuo 报
+  `PEM_read_bio_X509_AUX() failed ... bad end line`。
+- 因此统一走 `CertGen/PemFormatter.cs`：`Create()` 生成标准块（LF、64 列、**结尾带换行**），
+  `Concat()` 拼接多个块（自动规范化、保证块间有换行），`Normalize()` 处理外部传入的 PEM。
+- PEM 一律 **LF**：OpenSSL/nginx/Tongsuo/Java/IIS 都接受；CRLF 只有部分实现宽容
+  （OpenSSL 会忽略 `\r`，nginx 内置的 PEM 读取不会）。
+- `GeneratedCertificate.CertificateChainPem` 就是"叶子 + CA"的成品链，
+  对应 GUI 的「导出证书链 fullchain.pem」开关（默认开启）。
+
 ## 说明
 
 - 生成逻辑位于 `TestCertGenerator/CertGen`，本工程通过 `Compile Include` 复用，不复制实现。
