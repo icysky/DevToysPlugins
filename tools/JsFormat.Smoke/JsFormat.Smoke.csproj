@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    JS 格式化插件的回归测试：直接链接插件源码编译（覆盖 internal 类型），
+    不依赖 DevToys 进程；Prettier 的 JS 资源用相同 LogicalName 重新嵌入。
+
+    运行：powershell -ExecutionPolicy Bypass -File tools\JsFormat.Smoke\run.ps1
+    退出码 0 = 全部通过。
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>JsFormat.Smoke</RootNamespace>
+    <AssemblyName>JsFormat.Smoke</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\src\JsFormat.DevToys\**\*.cs"
+             Exclude="..\..\src\JsFormat.DevToys\bin\**\*.cs;..\..\src\JsFormat.DevToys\obj\**\*.cs"
+             LinkBase="Plugin" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\src\JsFormat.DevToys\Assets\prettier\*.js"
+                      LogicalName="JsFormat.DevToys.Assets.prettier.%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DevToys.Api" Version="2.0.9-preview" />
+    <PackageReference Include="System.ComponentModel.Composition" Version="8.0.0" />
+    <PackageReference Include="Jint" Version="4.17.0" />
+  </ItemGroup>
+
+  <!--
+    DevToys.Api 的 targets 会把「宿主已自带」的程序集从输出目录剔除（对真实插件是对的），
+    但本测试是独立进程，需要它们才能运行，所以从 @(ReferencePath) 里补回来。
+  -->
+  <Target Name="RestoreHostAssemblies" AfterTargets="Build">
+    <ItemGroup>
+      <HostAssemblyToCopy Include="@(ReferencePath)" Condition="'%(Filename)' == 'DevToys.Api' Or '%(Filename)' == 'CommunityToolkit.Common' Or '%(Filename)' == 'CommunityToolkit.Diagnostics' Or '%(Filename)' == 'Microsoft.Extensions.DependencyInjection.Abstractions' Or '%(Filename)' == 'Microsoft.Extensions.Logging.Abstractions' Or '%(Filename)' == 'OneOf' Or '%(Filename)' == 'System.ComponentModel.Composition'" />
+    </ItemGroup>
+    <Copy SourceFiles="@(HostAssemblyToCopy)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
+  </Target>
+
+</Project>

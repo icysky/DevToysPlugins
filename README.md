@@ -1,6 +1,6 @@
 # DevToysPlugins
 
-自用的四个 [DevToys 2.0（Preview）](https://devtoys.app/) 扩展，统一在一个解决方案里。
+自用的五个 [DevToys 2.0（Preview）](https://devtoys.app/) 扩展，统一在一个解决方案里。
 
 | 项目 | 功能 | 工具名（DevToys 左侧） | NuGet |
 | --- | --- | --- | --- |
@@ -8,8 +8,9 @@
 | [`src/MyCert.DevToys`](src/MyCert.DevToys/README.md) | 生成测试用 X.509 证书（RSA / SM2 国密），导出 PFX/CER/PEM | 证书生成器 | [MyCert.DevToys](https://www.nuget.org/packages/MyCert.DevToys) |
 | [`src/ChineseIpsum.DevToys`](src/ChineseIpsum.DevToys/README.md) | 中文假文生成器，语料为四大名著公版节选 | 中文假文 | [ChineseIpsum.DevToys](https://www.nuget.org/packages/ChineseIpsum.DevToys) |
 | [`src/GmCrypto.DevToys`](src/GmCrypto.DevToys/README.md) | 国密算法四件套：SM3 摘要、SM4 加解密、SM2 签名验签、SM2 加解密 | SM3 摘要 / SM4 加解密 / SM2 签名验签 / SM2 加解密 | [GmCrypto.DevToys](https://www.nuget.org/packages/GmCrypto.DevToys) |
+| [`src/JsFormat.DevToys`](src/JsFormat.DevToys/README.md) | 内嵌 Prettier 格式化 JS / TS / TSX / JSX / JSON | JS 格式化 | 不发布（与现有扩展功能重复，仅自用） |
 
-前三个插件在「生成器（Generators）」分组，国密四个工具在「编码/解码（Encoders & Decoders）」分组。
+前四个插件在「生成器（Generators）」分组，国密四个工具在「编码/解码（Encoders & Decoders）」分组，JS 格式化在「格式化（Formatters）」分组。
 
 ## 安装
 
@@ -28,11 +29,13 @@ DevToysPlugins/
 │  ├─ GoogleAuthenticator.DevToys/   # 动态口令
 │  ├─ MyCert.DevToys/                # 证书生成器（CertGen\ 为内联的证书生成实现）
 │  ├─ ChineseIpsum.DevToys/          # 中文假文
-│  └─ GmCrypto.DevToys/              # 国密四件套（Core\ 为 GM 算法层的内联副本 + Shared\ 共享层）
+│  ├─ GmCrypto.DevToys/              # 国密四件套（Core\ 为 GM 算法层的内联副本 + Shared\ 共享层）
+│  └─ JsFormat.DevToys/              # JS 格式化（Assets\prettier 为内嵌的 Prettier 3 构建，仅自用）
 └─ tools/
    ├─ GoogleAuthenticator.Smoke/     # 动态口令回归（110 项，net8.0）
    ├─ ChineseIpsum.Smoke/            # 假文生成回归（25 项，net8.0）
    ├─ GmCrypto.Smoke/                # 国密算法 + 共享层回归（29 项，net8.0）
+   ├─ JsFormat.Smoke/                # JS 格式化回归（20 项，net8.0）
    └─ MyCert.Smoke/                  # 证书 PEM 规范 + 证书链回归（20 项，net8.0）
 ```
 

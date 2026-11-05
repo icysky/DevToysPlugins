@@ -1,0 +1,58 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!--
+      必须按 net8.0 编译：DevToys 2.0.9-preview 宿主是自包含 .NET 8。
+      按 net10.0 编译会引用 10.0.0.0 的真实框架程序集，宿主加载抛 ReflectionTypeLoadException
+      （详见仓库根 README 坑 1）。
+    -->
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>JsFormat.DevToys</RootNamespace>
+    <AssemblyName>JsFormat.DevToys</AssemblyName>
+
+    <!-- DevToys 扩展元数据 -->
+    <IsPackable>true</IsPackable>
+    <Version>1.0.0.0</Version>
+    <Title>DevToys JS Formatter</Title>
+    <Description>用内嵌的 Prettier 格式化 JavaScript / TypeScript / TSX / JSX / JSON，选项与 Prettier 完全一致，离线可用。</Description>
+    <Authors>JsFormat</Authors>
+    <PackageTags>devtoys-app</PackageTags>
+    <PackageId>JsFormat.DevToys</PackageId>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <PublishTrimmed>false</PublishTrimmed>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 宿主已自带 DevToys.Api 与 MEF 程序集，只编译引用，不复制到插件输出 -->
+    <PackageReference Include="DevToys.Api" Version="2.0.9-preview" PrivateAssets="all" ExcludeAssets="runtime" />
+    <PackageReference Include="System.ComponentModel.Composition" Version="8.0.0" PrivateAssets="all" ExcludeAssets="runtime" />
+    <!--
+      Jint：纯托管 JS 解释器（BSD-2-Clause），只依赖 Acornima（MIT）。
+      两者都会随插件分发到 lib/net8.0，因为宿主不自带。
+    -->
+    <PackageReference Include="Jint" Version="4.17.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Prettier 3 standalone + 解析插件（MIT），作为嵌入资源随 dll 分发 -->
+    <EmbeddedResource Include="Assets\prettier\*.js"
+                      LogicalName="JsFormat.DevToys.Assets.prettier.%(Filename)%(Extension)" />
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <!-- DevToys 扩展包：把插件自身及运行时依赖全部放进 lib/<TFM> -->
+  <Target Name="IncludeAllFilesInTargetDir" BeforeTargets="_GetPackageFiles">
+    <ItemGroup>
+      <None Include="$(OutputPath)\**">
+        <Pack>true</Pack>
+        <PackagePath>lib\$(TargetFramework)</PackagePath>
+      </None>
+    </ItemGroup>
+  </Target>
+
+</Project>

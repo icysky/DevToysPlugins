@@ -28,3 +28,17 @@
 ## ChineseIpsum.DevToys
 
 无第三方运行时依赖：语料为四大名著公版节选，全部内嵌为资源。
+
+## JsFormat.DevToys
+
+| 组件 | 版本 | 许可证 | 说明 |
+| --- | --- | --- | --- |
+| Prettier | 3.9.10 | MIT | 格式化引擎，以 standalone + estree/typescript/babel 的 UMD 构建**内嵌**进插件 dll |
+| Jint | 4.17.0 | BSD-2-Clause | 纯托管 JS 解释器，用于执行内嵌的 Prettier；**随包分发** `Jint.dll` |
+| Acornima | 1.7.0 | BSD-3-Clause | Jint 的 JS 解析器；**随包分发** `Acornima.dll` |
+
+许可证全文：[`licenses/Prettier-MIT.txt`](licenses/Prettier-MIT.txt)、
+[`licenses/Jint-BSD-2.txt`](licenses/Jint-BSD-2.txt)、
+[`licenses/Acornima-BSD-3.txt`](licenses/Acornima-BSD-3.txt)
+
+> 该插件仅自用，不发布到 nuget.org。

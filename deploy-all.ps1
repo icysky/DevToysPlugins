@@ -52,13 +52,14 @@ $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $solutionPath = Join-Path $root 'DevToysPlugins.slnx'
 $devToysExe = Join-Path $env:LOCALAPPDATA 'Programs\DevToys Preview\DevToys.exe'
 $pluginsRoot = Join-Path $env:LOCALAPPDATA 'DevToys-preview\Plugins'
-$smokeSuites = @('GmCrypto.Smoke', 'ChineseIpsum.Smoke', 'GoogleAuthenticator.Smoke', 'MyCert.Smoke')
+$smokeSuites = @('GmCrypto.Smoke', 'ChineseIpsum.Smoke', 'GoogleAuthenticator.Smoke', 'MyCert.Smoke', 'JsFormat.Smoke')
 # PackageId == project directory name == installed folder name
 $plugins = @(
     'GmCrypto.DevToys',
     'MyCert.DevToys',
     'GoogleAuthenticator.DevToys',
-    'ChineseIpsum.DevToys'
+    'ChineseIpsum.DevToys',
+    'JsFormat.DevToys'
 )
 
 function Write-Step {
