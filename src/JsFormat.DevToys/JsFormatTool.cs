@@ -283,6 +283,7 @@ internal sealed class JsFormatTool : IGuiTool
         _inputBox = GUI.MultiLineTextInput("jsf-input")
             .Title("输入（点击「格式化」后执行，不会边打边算）")
             .HideCommandBar()
+            .Extendable()
             .Text(_inputText)
             .OnTextChanged(text =>
             {
@@ -298,6 +299,7 @@ internal sealed class JsFormatTool : IGuiTool
         _outputBox = GUI.MultiLineTextInput("jsf-output")
             .Title("输出")
             .HideCommandBar()
+            .Extendable()
             .ReadOnly();
 
         _formatButton = GUI.Button("jsf-format")
@@ -335,19 +337,12 @@ internal sealed class JsFormatTool : IGuiTool
 
     private UIToolView BuildView()
     {
-        IUIElement inputCard = GUI.Card(
-            "输入",
-            _inputBox);
+        // 工具条放最上面：按钮 + 状态（耗时/错误摘要）
+        IUIElement toolbar = GUI.Stack().Horizontal().SmallSpacing()
+            .WithChildren(_formatButton, _copyButton, _clearButton, _statusLabel)
+            .AlignVertically(UIVerticalAlignment.Center);
 
-        IUIElement outputCard = GUI.Card(
-            "输出",
-            GUI.Stack().Vertical().MediumSpacing().WithChildren(
-                GUI.Stack().Horizontal().SmallSpacing().WithChildren(
-                    _formatButton,
-                    _copyButton,
-                    _clearButton),
-                _statusLabel,
-                _outputBox));
+
 
         IUIElement optionsCard = GUI.Card(
             "Prettier 选项（与 prettier 配置文件语义一致）",
@@ -369,16 +364,18 @@ internal sealed class JsFormatTool : IGuiTool
                     GUI.Cell(2, 1, 1, 1, LabeledField("大括号内空格", _bracketSpacingSwitch)),
                     GUI.Cell(2, 2, 1, 1, LabeledField("换行符", _endOfLineSelect))));
 
-        // 首行用 Fraction 撑满剩余高度，否则 Auto 行会把多行输入/输出框压成一行高
+        // 上：工具条 + 选项；下：输入 / 输出各占一半并撑满剩余高度（底部对齐）
         IUIElement body = GUI.Grid()
             .Columns(GUI.Fraction(1), GUI.Fraction(1))
-            .Rows(GUI.Fraction(1), UIGridLength.Auto)
+            .Rows(UIGridLength.Auto, UIGridLength.Auto, GUI.Fraction(1))
             .ColumnLargeSpacing()
-            .RowLargeSpacing()
+            .RowMediumSpacing()
             .Cells(
-                GUI.Cell(0, 0, 1, 1, inputCard),
-                GUI.Cell(0, 1, 1, 1, outputCard),
-                GUI.Cell(1, 0, 1, 2, optionsCard));
+                GUI.Cell(0, 0, 1, 2, toolbar),
+                GUI.Cell(1, 0, 1, 2, optionsCard),
+                // 文本框直接放进格子（不套 Card）：套 Card 会按内容高度收缩，撑不满整行
+                GUI.Cell(2, 0, 1, 1, _inputBox.AlignVertically(UIVerticalAlignment.Stretch)),
+                GUI.Cell(2, 1, 1, 1, _outputBox.AlignVertically(UIVerticalAlignment.Stretch)));
 
         return new UIToolView(body);
     }
@@ -433,6 +430,8 @@ internal sealed class JsFormatTool : IGuiTool
         }
 
         GUI.Text(_statusLabel, "正在格式化…（首次会先加载内嵌 Prettier，约 0.5 秒）");
+        GUI.Text(_formatButton, "格式化中…");
+        GUI.Disable(_formatButton);
 
         try
         {
@@ -471,6 +470,11 @@ internal sealed class JsFormatTool : IGuiTool
             GUI.Text(_outputBox, message);
             SaveState();
             GUI.Text(_statusLabel, "格式化失败，错误见输出框");
+        }
+        finally
+        {
+            GUI.Enable(_formatButton);
+            GUI.Text(_formatButton, "格式化");
         }
     }
 

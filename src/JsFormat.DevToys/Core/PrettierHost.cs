@@ -43,8 +43,12 @@ internal sealed class PrettierHost
     private static Task<PrettierHost> CreateAsync() => Task.Run(() =>
     {
         Engine engine = new(options => options
-            .TimeoutInterval(TimeSpan.FromSeconds(30))
-            .LimitMemory(2L * 1024 * 1024 * 1024));
+            .TimeoutInterval(TimeSpan.FromSeconds(60))
+            // 注意：Jint 的 LimitMemory 统计的是「累计分配字节」，不是常驻内存。
+            // 格式化压缩成单行的 JS 时 Prettier 会创建巨大的 doc 树，累计分配很快超过 2GB，
+            // 而实测进程峰值 RSS 只有约 214MB（118KB 单行输入）。所以这里给足预算，
+            // 避免误判为 OOM，同时真正的大输入由 FormatAsync 的入口检查挡住。
+            .LimitMemory(8L * 1024 * 1024 * 1024));
 
         foreach (string bundle in Bundles)
         {
@@ -77,6 +81,12 @@ internal sealed class PrettierHost
     /// </summary>
     public async Task<FormatResult> FormatAsync(string code, FormatOptions options, CancellationToken cancellationToken)
     {
+        FormatResult? rejected = GuardInput(code);
+        if (rejected is not null)
+        {
+            return rejected.Value;
+        }
+
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
@@ -87,6 +97,92 @@ internal sealed class PrettierHost
         {
             _gate.Release();
         }
+    }
+
+    /// <summary>超过这个字符数就直接拒绝（约 300 KB）。</summary>
+    private const int MaxInputLength = 300 * 1024;
+
+    /// <summary>单行超过这个长度就当成"压缩代码"，直接拒绝。</summary>
+    private const int MaxLineLength = 4000;
+
+    /// <summary>
+    /// 入口防护。压缩成单行的 bundle 会让 Prettier 为整行建出巨大的排版树，
+    /// Jint 的「累计分配」预算（哪怕 8 GB）也会瞬间耗尽，而且会把 DevToys 拖到卡死甚至崩溃。
+    /// 所以这类输入在进引擎之前就挡掉，并给出可直接照抄的 node 命令。
+    /// </summary>
+    private static FormatResult? GuardInput(string code)
+    {
+        int longestLine = 0;
+        int current = 0;
+        foreach (char ch in code)
+        {
+            if (ch == '\n')
+            {
+                if (current > longestLine)
+                {
+                    longestLine = current;
+                }
+
+                current = 0;
+            }
+            else if (ch != '\r')
+            {
+                current++;
+            }
+        }
+
+        if (current > longestLine)
+        {
+            longestLine = current;
+        }
+
+        bool tooBig = code.Length > MaxInputLength;
+        bool tooWide = longestLine > MaxLineLength;
+        if (!tooBig && !tooWide)
+        {
+            return null;
+        }
+
+        string reason = tooWide
+            ? $"最长一行有 {longestLine:N0} 个字符，看起来是压缩/打包后的单行代码"
+            : $"共 {code.Length / 1024:N0} KB";
+
+        return new FormatResult(
+            false,
+            $"""
+            未执行格式化：{reason}。
+
+            Prettier 在 Jint（解释执行）里为这种输入建排版树时，虚拟机的累计内存分配会超过 8 GB，
+            继续跑只会让 DevToys 卡死甚至崩溃，所以这里直接拦下。
+
+            体积/行数在这个量级时，建议直接用本地 node（输出与本插件完全一致）：
+                npx prettier@3 --write "你的文件.js"
+            需要指定语法时加参数，例如 TypeScript：
+                npx prettier@3 --parser typescript --write "你的文件.ts"
+
+            如果只想在插件里看一小段的效果，把片段粘进来即可（建议单行不超过 {MaxLineLength:N0} 字符、
+            总长度不超过 {MaxInputLength / 1024:N0} KB）。
+            """,
+            0);
+    }
+
+    /// <summary>把 Jint 的术语翻译成人话，其余错误原样返回（Prettier 的报错本身就很清楚）。</summary>
+    private static string ErrorText(string message)
+    {
+        if (message.Contains("has allocated", StringComparison.OrdinalIgnoreCase))
+        {
+            return "内存预算已用尽。这通常是因为文件过大，或被压缩成了单行（Prettier 要为整行建巨大的排版树）。\n"
+                   + "建议：先把代码换行/拆分，或改用本地 node 的 prettier 处理。\n\n"
+                   + message;
+        }
+
+        if (message.Contains("timeout", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("interrupted", StringComparison.OrdinalIgnoreCase))
+        {
+            return "执行超时（Jint 单次执行 60 秒上限）。文件可能过大或过于复杂。\n\n" + message;
+        }
+
+        return message;
     }
 
     private FormatResult FormatCore(string code, FormatOptions options, CancellationToken cancellationToken)
@@ -148,13 +244,13 @@ internal sealed class PrettierHost
         catch (Exception ex)
         {
             // Jint 层异常（语法/内存/超时等）也当成格式化错误展示
-            return new FormatResult(false, $"格式化失败：{ex.Message}", stopwatch.ElapsedMilliseconds);
+            return new FormatResult(false, ErrorText(ex.Message), stopwatch.ElapsedMilliseconds);
         }
 
         string? error = _engine.Evaluate("globalThis.__err === undefined ? null : globalThis.__err").ToObject() as string;
         if (error is not null)
         {
-            return new FormatResult(false, error, stopwatch.ElapsedMilliseconds);
+            return new FormatResult(false, ErrorText(error), stopwatch.ElapsedMilliseconds);
         }
 
         string output = _engine.Evaluate("globalThis.__out").ToString();

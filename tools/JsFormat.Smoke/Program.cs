@@ -3,6 +3,28 @@ using System.Diagnostics;
 using System.Text;
 using JsFormat.DevToys.Core;
 
+if (args.Contains("--minified"))
+{
+    // 手动压测：模拟压缩过的单行 JS，观察耗时与内存上限
+    PrettierHost probeHost = await PrettierHost.GetAsync();
+    foreach (int statements in new[] { 2000, 5000, 10000 })
+    {
+        StringBuilder source = new();
+        for (int i = 0; i < statements; i++)
+        {
+            source.Append($"function f{i}(a,b){{return a+b*{i};}}var v{i}=f{i}({i},{i});");
+        }
+
+        string code = source.ToString();
+        Stopwatch watch = Stopwatch.StartNew();
+        FormatResult result = await probeHost.FormatAsync(code, new FormatOptions(), CancellationToken.None);
+        watch.Stop();
+        Console.WriteLine($"{code.Length / 1024,4} KB 单行 → {(result.Success ? "OK" : "FAIL")} {watch.ElapsedMilliseconds} ms  {result.Text[..Math.Min(60, result.Text.Length)].Replace("\n", " ")}");
+    }
+
+    return 0;
+}
+
 int passed = 0;
 int failed = 0;
 
@@ -90,6 +112,15 @@ FormatResult broken = await Format("const a = ;\nconst b = 2;");
 Check("返回失败而不是抛异常", () => !broken.Success);
 Check("带行列定位", () => broken.Text.Contains("(1:", StringComparison.Ordinal));
 Check("带可读原因", () => broken.Text.Contains("expected", StringComparison.OrdinalIgnoreCase));
+
+Section("输入防护（压缩/超大文件）");
+FormatResult huge = await Format(new string('a', (300 * 1024) + 10));
+Check("超过 300KB 直接拒绝", () => !huge.Success && huge.Text.Contains("未执行格式化", StringComparison.Ordinal));
+Check("提示改用 node", () => huge.Text.Contains("npx prettier", StringComparison.Ordinal));
+
+FormatResult tooWide = await Format("var a=1;" + new string('x', 5000));
+Check("单行过长（压缩代码）直接拒绝", () => !tooWide.Success && tooWide.Text.Contains("压缩", StringComparison.Ordinal));
+Check("拒绝是即时的（未进入引擎）", () => tooWide.ElapsedMs == 0 && huge.ElapsedMs == 0);
 
 Section("大文件性能");
 StringBuilder big = new();

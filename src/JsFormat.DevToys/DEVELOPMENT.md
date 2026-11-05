@@ -52,6 +52,18 @@ csproj 里用固定 LogicalName 嵌入：
 3. **错误文本直接给用户**：Prettier 抛的 `e.message` 自带 `行:列` 与代码框，
    不需要自己再算位置；`FormatResult.Success=false` 时 UI 把它写进输出框。
 
+## 内存语义与输入防护
+
+- `LimitMemory` 统计的是 **累计分配字节**，不是常驻内存。格式化压缩单行代码时 Prettier 会
+  创建巨大的 doc 树，累计分配很快爆预算，但**进程峰值 RSS 却很低**（118 KB 单行实测约 214 MB）。
+  所以不能靠"看到内存爆了"判断真的缺内存。
+- 实测：118 KB 单行 → 8 GB 预算内成功（约 13 s）；306 KB 单行 → 8 GB 预算仍不够，
+  而且会把 DevToys 拖到崩溃（进程直接消失，无异常可捕获）。
+- 因此 `PrettierHost.GuardInput` 在进引擎前就拦截：总长度 > 300 KB 或最长行 > 4,000 字符
+  直接返回可读原因 + node 替代命令。**这两个阈值是安全边界，调大之前先确认不会再次拖崩宿主。**
+- `ErrorText` 把 Jint 的 `Script has allocated ... but is limited to ...` 翻译成中文说明，
+  其余错误原样透传（Prettier 的报错本身带行列与代码框，很准确）。
+
 ## 性能（本机 Jint 解释执行）
 
 | 场景 | 耗时 |

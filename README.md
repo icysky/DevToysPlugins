@@ -35,7 +35,7 @@ DevToysPlugins/
    ├─ GoogleAuthenticator.Smoke/     # 动态口令回归（110 项，net8.0）
    ├─ ChineseIpsum.Smoke/            # 假文生成回归（25 项，net8.0）
    ├─ GmCrypto.Smoke/                # 国密算法 + 共享层回归（29 项，net8.0）
-   ├─ JsFormat.Smoke/                # JS 格式化回归（20 项，net8.0）
+   ├─ JsFormat.Smoke/                # JS 格式化回归（24 项，net8.0）
    └─ MyCert.Smoke/                  # 证书 PEM 规范 + 证书链回归（20 项，net8.0）
 ```
 
