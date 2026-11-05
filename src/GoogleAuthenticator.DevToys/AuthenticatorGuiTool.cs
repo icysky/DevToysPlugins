@@ -336,29 +336,31 @@ internal sealed class AuthenticatorGuiTool : IGuiTool
     private AccountRow CreateRow(OtpAccount account)
     {
         string id = account.Id;
-        AccountRow row = new() { Account = account };
+        AccountRow row = new()
+        {
+            Account = account,
+            CodeLabel = GUI.Label($"gauth-code-{id}")
+                .Style(UILabelStyle.TitleLarge)
+                .NeverWrap(),
 
-        row.CodeLabel = GUI.Label($"gauth-code-{id}")
-            .Style(UILabelStyle.TitleLarge)
-            .NeverWrap();
+            CountdownLabel = GUI.Label($"gauth-countdown-{id}")
+                .Style(UILabelStyle.Caption)
+                .AlignHorizontally(UIHorizontalAlignment.Center),
 
-        row.CountdownLabel = GUI.Label($"gauth-countdown-{id}")
-            .Style(UILabelStyle.Caption)
-            .AlignHorizontally(UIHorizontalAlignment.Center);
+            Ring = GUI.ProgressRing($"gauth-ring-{id}"),
 
-        row.Ring = GUI.ProgressRing($"gauth-ring-{id}");
+            IssuerLabel = GUI.Label($"gauth-issuer-{id}")
+                .Text(account.GetDisplayTitle())
+                .Style(UILabelStyle.BodyStrong),
 
-        row.IssuerLabel = GUI.Label($"gauth-issuer-{id}")
-            .Text(account.GetDisplayTitle())
-            .Style(UILabelStyle.BodyStrong);
+            LabelLabel = GUI.Label($"gauth-label-{id}")
+                .Text(account.GetDisplaySubtitle())
+                .Style(UILabelStyle.Caption),
 
-        row.LabelLabel = GUI.Label($"gauth-label-{id}")
-            .Text(account.GetDisplaySubtitle())
-            .Style(UILabelStyle.Caption);
-
-        row.MetaLabel = GUI.Label($"gauth-meta-{id}")
-            .Text(account.GetMetaDisplay())
-            .Style(UILabelStyle.Caption);
+            MetaLabel = GUI.Label($"gauth-meta-{id}")
+                .Text(account.GetMetaDisplay())
+                .Style(UILabelStyle.Caption)
+        };
 
         // 「下一位」始终创建，按类型显隐：编辑时若把 TOTP 改成 HOTP，控件集合不能变，
         // 否则同样会触发上面说的订阅失效问题。
