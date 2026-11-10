@@ -810,7 +810,8 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
                     GUI.Cell(3, 1, 1, 1, Row("ci-stress-fullwidth", "全角字符", "ＡＢＣ１２３，测中西文混排", StressSwitch("ci-sw-fullwidth", IpsumStressFlags.FullWidth))),
                     GUI.Cell(4, 0, 1, 1, Row("ci-stress-invisible", "不可见字符", "NBSP / 零宽空格 / 软连字符", StressSwitch("ci-sw-invisible", IpsumStressFlags.Invisible))),
                     GUI.Cell(4, 1, 1, 1, Row("ci-stress-longrun", "超长不可断串", "40~200 字母，测 overflow-wrap", StressSwitch("ci-sw-longrun", IpsumStressFlags.LongRun))),
-                    GUI.Cell(5, 0, 1, 1, Row("ci-stress-density", "压力强度", "插入压力字符的概率", DensitySelect("ci-stress-density-select", _stressDensity, d => _stressDensity = d)))));
+                    GUI.Cell(5, 0, 1, 1, Row("ci-stress-other", "其他文字区块", "盲文 蒙古 藏文 彝文 天城文 泰文 康熙部首", StressSwitch("ci-sw-other", IpsumStressFlags.OtherScripts))),
+                    GUI.Cell(5, 1, 1, 1, Row("ci-stress-density", "压力强度", "插入压力字符的概率", DensitySelect("ci-stress-density-select", _stressDensity, d => _stressDensity = d)))));
 
         _fragmentCard = GUI.Card(
             "结构化片段（有格式、无意义）",

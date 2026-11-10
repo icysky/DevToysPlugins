@@ -529,6 +529,21 @@ Check("图形与符号：出现 ◆ ● ★ ☀ ♪ ✓ ┼ 等", () =>
         RandomTextGenerator.Generate(new RandomTextOptions { Length = 800, Stress = IpsumStressFlags.GraphicSymbols }),
         r => r.Value is >= 0x2500 and <= 0x27BF));
 
+Check("其他文字区块：出现盲文 / 藏文 / 彝文 / 泰文 / 康熙部首", () =>
+    HasRune(
+        RandomTextGenerator.Generate(new RandomTextOptions
+        {
+            Length = 1200,
+            Stress = IpsumStressFlags.OtherScripts
+        }),
+        r => r.Value is >= 0x0900 and <= 0x0FFF
+            or >= 0x1800 and <= 0x18AF
+            or >= 0x2800 and <= 0x28FF
+            or >= 0x2F00 and <= 0x2FDF
+            or >= 0x3200 and <= 0x32FF
+            or >= 0xA000 and <= 0xA4CF
+            or >= 0xFE10 and <= 0xFE1F));
+
 Check("带圈运算符（⊕ ⦿ ⊗ ⊙）能出现", () =>
     HasRune(
         RandomTextGenerator.Generate(new RandomTextOptions
@@ -586,8 +601,15 @@ Check("默认全关：以上字符一个都不出现", () =>
         || r.Value is >= 0x3040 and <= 0x30FF
         || r.Value is >= 0xAC00 and <= 0xD7AF
         || r.Value is >= 0x0590 and <= 0x06FF
+        || r.Value is >= 0x0900 and <= 0x0FFF
+        || r.Value is >= 0x1800 and <= 0x18AF
         || r.Value is >= 0x2190 and <= 0x27BF
+        || r.Value is >= 0x2800 and <= 0x28FF
         || r.Value is >= 0x2A00 and <= 0x2AFF
+        || r.Value is >= 0x2F00 and <= 0x2FDF
+        || r.Value is >= 0x3200 and <= 0x32FF
+        || r.Value is >= 0xA000 and <= 0xA4CF
+        || r.Value is >= 0xFE10 and <= 0xFE1F
         || r.Value is >= 0xFF10 and <= 0xFF19
         || r.Value is >= 0xFF21 and <= 0xFF3A
         || r.Value is >= 0xFF41 and <= 0xFF5A);

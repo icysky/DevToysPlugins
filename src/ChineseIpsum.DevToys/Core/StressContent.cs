@@ -38,7 +38,13 @@ internal enum IpsumStressFlags
     Invisible = 1 << 7,
 
     /// <summary>超长不可断串（40~200 个字母，用来测 overflow-wrap / word-break）。</summary>
-    LongRun = 1 << 8
+    LongRun = 1 << 8,
+
+    /// <summary>
+    /// 其他文字区块：盲文、蒙古文、藏文、彝文、天城文、泰文、康熙部首、带括号 CJK、竖排形式。
+    /// 这些字形大多字体没有，会大量呈现豆腐块/形状异常——正适合验证字体回退与复杂文本整形。
+    /// </summary>
+    OtherScripts = 1 << 10
 }
 
 /// <summary>结构化片段分组（有格式、无意义）。</summary>
@@ -132,6 +138,21 @@ internal static class StressContent
         "═", "║", "╔", "╗", "╚", "╝", "╬", "╱", "╲", "╳"
     ];
 
+    // 其他文字区块：盲文(2800)、蒙古文(1800)、藏文(0F00)、彝文(A000)、
+    // 天城文(0900，带组合符号)、泰文(0E00)、康熙部首(2F00)、带括号 CJK(3200)、竖排形式(FE10)
+    private static readonly string[] OtherScripts =
+    [
+        "⠁", "⠿", "⣿", "⠮",
+        "ᠮ", "ᠣ", "ᠩ", "ᠭ",
+        "ཀ", "ཁ", "ག", "ང",
+        "ꀀ", "ꀁ", "ꁯ", "ꂷ",
+        "नमस्ते", "क्ष", "हिन्दी",
+        "ก", "ข", "ค", "ง",
+        "⼀", "⼁", "⼂", "⼃",
+        "㈀", "㈁", "㊣", "㊤",
+        "︐", "︑", "︒", "︓"
+    ];
+
     private static readonly string[] LatinExtended =
     [
         "é", "ü", "ñ", "ø", "å", "ç", "ß", "œ", "š", "ž", "č", "ł", "đ", "ğ", "ı",
@@ -167,6 +188,7 @@ internal static class StressContent
         IpsumStressFlags.Rtl => NextRtl(random),
         IpsumStressFlags.MathSymbols => MathSymbols[random.Next(MathSymbols.Length)],
         IpsumStressFlags.GraphicSymbols => GraphicSymbols[random.Next(GraphicSymbols.Length)],
+        IpsumStressFlags.OtherScripts => OtherScripts[random.Next(OtherScripts.Length)],
         IpsumStressFlags.LatinExtended => LatinExtended[random.Next(LatinExtended.Length)],
         IpsumStressFlags.SpecialForms => SpecialForms[random.Next(SpecialForms.Length)],
         IpsumStressFlags.FullWidth => NextFullWidth(random),
