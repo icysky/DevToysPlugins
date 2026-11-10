@@ -62,15 +62,15 @@
     <value>中文假文</value>
   </data>
   <data name="LongDisplayTitle" xml:space="preserve">
-    <value>中文假文生成器（四大名著）</value>
+    <value>中文假文生成器（名著节选 / 随机乱文）</value>
   </data>
   <data name="Description" xml:space="preserve">
-    <value>用四大名著的原文片段生成中文占位文本，可按段落 / 句子 / 字数输出。</value>
+    <value>生成中文占位文本：可选四大名著节选，或按规则生成无意义的随机乱文（随机汉字、生僻字、标点、多语言混合），支持按段落 / 句子 / 字符数 / 字词数输出。</value>
   </data>
   <data name="AccessibleName" xml:space="preserve">
-    <value>中文假文生成器，使用四大名著原文生成占位文本</value>
+    <value>中文假文生成器，可用四大名著节选或随机乱文生成占位文本</value>
   </data>
   <data name="SearchKeywords" xml:space="preserve">
-    <value>lorem,ipsum,lipsum,假文,乱数假文,占位文本,中文,红楼梦,西游记,水浒传,三国演义,四大名著</value>
+    <value>lorem,ipsum,lipsum,假文,乱数假文,占位文本,中文,红楼梦,西游记,水浒传,三国演义,四大名著,随机,乱文,生僻字,多语言,测试文本</value>
   </data>
 </root>

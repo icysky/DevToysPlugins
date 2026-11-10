@@ -10,7 +10,19 @@ internal static class IpsumGenerator
     public const int MinLength = 1;
     public const int MaxLength = 5000;
 
-    public static string Generate(IpsumCorpus corpus, IpsumUnit unit, int length, bool startWithOpening)
+    public const int MinSentencesPerParagraph = 1;
+
+    public const int MaxSentencesPerParagraph = 20;
+
+    /// <param name="minSentencesPerParagraph">每段最少几句（仅段落模式生效，闭区间）。</param>
+    /// <param name="maxSentencesPerParagraph">每段最多几句（仅段落模式生效，闭区间）。</param>
+    public static string Generate(
+        IpsumCorpus corpus,
+        IpsumUnit unit,
+        int length,
+        bool startWithOpening,
+        int minSentencesPerParagraph = 3,
+        int maxSentencesPerParagraph = 6)
     {
         IReadOnlyList<string> sentences = IpsumCorpora.GetSentences(corpus);
         if (sentences.Count == 0)
@@ -22,11 +34,14 @@ internal static class IpsumGenerator
         Random random = Random.Shared;
         string opening = startWithOpening ? IpsumCorpora.GetOpening(corpus) : string.Empty;
 
+        int minSentences = Math.Clamp(minSentencesPerParagraph, MinSentencesPerParagraph, MaxSentencesPerParagraph);
+        int maxSentences = Math.Clamp(maxSentencesPerParagraph, minSentences, MaxSentencesPerParagraph);
+
         return unit switch
         {
             IpsumUnit.Sentences => Join(BuildSentences(sentences, length, opening, random)),
             IpsumUnit.Characters => Join(BuildByCharacters(sentences, length, opening, random)),
-            _ => BuildParagraphs(sentences, length, opening, random)
+            _ => BuildParagraphs(sentences, length, opening, random, minSentences, maxSentences)
         };
     }
 
@@ -72,7 +87,13 @@ internal static class IpsumGenerator
         return picked;
     }
 
-    private static string BuildParagraphs(IReadOnlyList<string> sentences, int paragraphs, string opening, Random random)
+    private static string BuildParagraphs(
+        IReadOnlyList<string> sentences,
+        int paragraphs,
+        string opening,
+        Random random,
+        int minSentences,
+        int maxSentences)
     {
         // 开篇句只用于第一段；每段各自维护「已用句」集合，段内不重复。
         string pendingOpening = opening;
@@ -85,7 +106,8 @@ internal static class IpsumGenerator
                 builder.Append(Environment.NewLine).Append(Environment.NewLine);
             }
 
-            int sentenceCount = random.Next(3, 7);
+            // 闭区间随机：每段句数由调用方给定的范围决定
+            int sentenceCount = random.Next(minSentences, maxSentences + 1);
             List<string> paragraph = [];
             HashSet<string> used = new(StringComparer.Ordinal);
 
