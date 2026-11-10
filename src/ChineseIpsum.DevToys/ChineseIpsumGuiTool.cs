@@ -156,8 +156,35 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
 
     private IpsumSpaceStyle _spaceStyle = IpsumSpaceStyle.Single;
 
-    /// <summary>高级选项（字符压力 / 结构化片段 / 段落形态）是否展开。默认收起，把高度让给结果框。</summary>
-    private bool _showAdvanced;
+    /// <summary>当前展开的高级分组（一次只显示一组，保证结果框高度）。</summary>
+    private IpsumAdvancedGroup _advancedGroup = IpsumAdvancedGroup.None;
+
+    // 开关一律保留引用：状态从控件读，而不是从事件参数读（见 PullSwitchState）
+    private IUISwitch _openingSwitch = default!;
+
+    private IUISwitch _rareSwitch = default!;
+
+    private IUISwitch _paragraphSwitch = default!;
+
+    private IUISwitch _punctuationSwitch = default!;
+
+    private IUISwitch _mixedSwitch = default!;
+
+    private IUISwitch _blankLineSwitch = default!;
+
+    private IUISwitch _randomBlankLineSwitch = default!;
+
+
+
+    private IUISwitch _indentSwitch = default!;
+
+    private IUISwitch _quoteSwitch = default!;
+
+    private IUISwitch _inlineCodeSwitch = default!;
+
+    private readonly List<(IpsumStressFlags Flag, IUISwitch Switch)> _stressSwitches = [];
+
+    private readonly List<(IpsumFragmentFlags Flag, IUISwitch Switch)> _fragmentSwitches = [];
 
     // 按模式显示/隐藏的整行 / 整块（DevToys 要求只改可见性，不能替换控件实例）
     private IUIElement _corpusGrid = default!;
@@ -205,13 +232,6 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
     private IUIElement _mixedRow = default!;
 
     private bool _loading = true;
-
-    /// <summary>
-    /// 控件在首次渲染时会抛一次 Toggled，且携带的值是初始状态的"反面"
-    /// （实测：初始 true 抛 false，初始 false 抛 true），直接采信会把错误的值写进设置。
-    /// 这里按控件 id 丢弃第一次事件，之后的事件才是用户操作。
-    /// </summary>
-    private readonly HashSet<string> _initialToggleEvents = new(StringComparer.Ordinal);
 
     private UIToolView? _view;
 
@@ -277,8 +297,56 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
     {
     }
 
-    /// <summary>首次事件（渲染初始化）返回 true，调用方应直接返回。</summary>
-    private bool IsInitialToggle(string controlId) => _initialToggleEvents.Add(controlId);
+    /// <summary>开关变化：统一走 Generate（内部会读控件状态、存设置、刷新可见性）。</summary>
+    private void OnSwitchChanged()
+    {
+        if (_loading)
+        {
+            return;
+        }
+
+        Generate();
+    }
+
+    /// <summary>
+    /// 开关状态一律从控件 <c>IsOn</c> 读取，不采信事件参数。
+    ///
+    /// 原因：DevToys 在首次渲染时会抛一次 Toggled，且携带的值是初始状态的"反面"
+    /// （初始 true 抛 false、初始 false 抛 true）。按事件值写状态会把默认值写反；
+    /// 而"丢弃第一次事件"又会把用户的第一次点击吞掉（实测点折叠/生僻字没反应）。
+    /// 读控件状态可以同时避开这两个坑——渲染事件触发的重新生成结果也是一样的。
+    /// </summary>
+    private void PullSwitchState()
+    {
+        _startWithOpening = _openingSwitch.IsOn;
+        _includeRare = _rareSwitch.IsOn;
+        _paragraphs = _paragraphSwitch.IsOn;
+        _punctuation = _punctuationSwitch.IsOn;
+        _mixedLanguages = _mixedSwitch.IsOn;
+        _blankLineParagraphs = _blankLineSwitch.IsOn;
+        _randomBlankLineParagraphs = _randomBlankLineSwitch.IsOn;
+        _indentFirstLine = _indentSwitch.IsOn;
+        _quoteBlocks = _quoteSwitch.IsOn;
+        _inlineCode = _inlineCodeSwitch.IsOn;
+
+        _stress = IpsumStressFlags.None;
+        foreach ((IpsumStressFlags flag, IUISwitch toggle) in _stressSwitches)
+        {
+            if (toggle.IsOn)
+            {
+                _stress |= flag;
+            }
+        }
+
+        _fragments = IpsumFragmentFlags.None;
+        foreach ((IpsumFragmentFlags flag, IUISwitch toggle) in _fragmentSwitches)
+        {
+            if (toggle.IsOn)
+            {
+                _fragments |= flag;
+            }
+        }
+    }
 
     private UIToolView BuildView()
     {
@@ -356,23 +424,34 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
             });
 
         // 高级选项折叠：默认收起，把纵向空间让给结果框
-        IUISwitch advancedSwitch = _showAdvanced ? GUI.Switch("ci-advanced").On() : GUI.Switch("ci-advanced").Off();
-        advancedSwitch.OnToggle(on =>
-        {
-            if (_loading || IsInitialToggle("ci-advanced"))
-            {
-                return;
-            }
+        IUIDropDownListItem[] advancedItems =
+        [
+            GUI.Item("收起", IpsumAdvancedGroup.None),
+            GUI.Item("字符压力", IpsumAdvancedGroup.Stress),
+            GUI.Item("结构化片段", IpsumAdvancedGroup.Fragment),
+            GUI.Item("段落形态", IpsumAdvancedGroup.Shape)
+        ];
 
-            _showAdvanced = on;
-            SaveSettings();
-            UpdateVisibility();
-        });
+        IUISelectDropDownList advancedSelect = GUI.SelectDropDownList("ci-advanced")
+            .WithItems(advancedItems)
+            .Select(advancedItems[Math.Clamp((int)_advancedGroup, 0, advancedItems.Length - 1)])
+            .OnItemSelected(item =>
+            {
+                if (_loading || item?.Value is not IpsumAdvancedGroup group)
+                {
+                    return;
+                }
+
+                _advancedGroup = group;
+                SaveSettings();
+                UpdateVisibility();
+                Generate();
+            });
 
         _advancedRow = GUI.Setting("ci-setting-advanced")
-            .Title("高级选项")
-            .Description("字符压力 / 结构化片段 / 段落形态；收起时结果框更高")
-            .InteractiveElement(advancedSwitch);
+            .Title("高级分组")
+            .Description("一次只展开一组（字符压力 / 结构化片段 / 段落形态），保证结果框始终够高")
+            .InteractiveElement(advancedSelect);
 
         _advancedHint = GUI.Label("ci-advanced-hint")
             .Style(UILabelStyle.Caption)
@@ -437,57 +516,17 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
                 Generate();
             });
 
-        IUISwitch openingSwitch = _startWithOpening ? GUI.Switch("ci-opening").On() : GUI.Switch("ci-opening").Off();
-        openingSwitch.OnToggle(on =>
-        {
-            if (_loading || IsInitialToggle("ci-opening"))
-            {
-                return;
-            }
+        _openingSwitch = _startWithOpening ? GUI.Switch("ci-opening").On() : GUI.Switch("ci-opening").Off();
+        _openingSwitch.OnToggle(_ => OnSwitchChanged());
 
-            _startWithOpening = on;
-            SaveSettings();
-            Generate();
-        });
+        _rareSwitch = _includeRare ? GUI.Switch("ci-rare").On() : GUI.Switch("ci-rare").Off();
+        _rareSwitch.OnToggle(_ => OnSwitchChanged());
 
-        IUISwitch rareSwitch = _includeRare ? GUI.Switch("ci-rare").On() : GUI.Switch("ci-rare").Off();
-        rareSwitch.OnToggle(on =>
-        {
-            if (_loading || IsInitialToggle("ci-rare"))
-            {
-                return;
-            }
+        _paragraphSwitch = _paragraphs ? GUI.Switch("ci-paragraphs").On() : GUI.Switch("ci-paragraphs").Off();
+        _paragraphSwitch.OnToggle(_ => OnSwitchChanged());
 
-            _includeRare = on;
-            SaveSettings();
-            Generate();
-        });
-
-        IUISwitch paragraphSwitch = _paragraphs ? GUI.Switch("ci-paragraphs").On() : GUI.Switch("ci-paragraphs").Off();
-        paragraphSwitch.OnToggle(on =>
-        {
-            if (_loading || IsInitialToggle("ci-paragraphs"))
-            {
-                return;
-            }
-
-            _paragraphs = on;
-            SaveSettings();
-            Generate();
-        });
-
-        IUISwitch punctuationSwitch = _punctuation ? GUI.Switch("ci-punctuation").On() : GUI.Switch("ci-punctuation").Off();
-        punctuationSwitch.OnToggle(on =>
-        {
-            if (_loading || IsInitialToggle("ci-punctuation"))
-            {
-                return;
-            }
-
-            _punctuation = on;
-            SaveSettings();
-            Generate();
-        });
+        _punctuationSwitch = _punctuation ? GUI.Switch("ci-punctuation").On() : GUI.Switch("ci-punctuation").Off();
+        _punctuationSwitch.OnToggle(_ => OnSwitchChanged());
 
         IUIDropDownListItem[] punctStyleItems =
         [
@@ -511,44 +550,14 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
                 Generate();
             });
 
-        IUISwitch mixedSwitch = _mixedLanguages ? GUI.Switch("ci-mixed").On() : GUI.Switch("ci-mixed").Off();
-        mixedSwitch.OnToggle(on =>
-        {
-            if (_loading || IsInitialToggle("ci-mixed"))
-            {
-                return;
-            }
+        _mixedSwitch = _mixedLanguages ? GUI.Switch("ci-mixed").On() : GUI.Switch("ci-mixed").Off();
+        _mixedSwitch.OnToggle(_ => OnSwitchChanged());
 
-            _mixedLanguages = on;
-            SaveSettings();
-            Generate();
-        });
+        _blankLineSwitch = _blankLineParagraphs ? GUI.Switch("ci-blank-line").On() : GUI.Switch("ci-blank-line").Off();
+        _blankLineSwitch.OnToggle(_ => OnSwitchChanged());
 
-        IUISwitch blankLineSwitch = _blankLineParagraphs ? GUI.Switch("ci-blank-line").On() : GUI.Switch("ci-blank-line").Off();
-        blankLineSwitch.OnToggle(on =>
-        {
-            if (_loading || IsInitialToggle("ci-blank-line"))
-            {
-                return;
-            }
-
-            _blankLineParagraphs = on;
-            SaveSettings();
-            Generate();
-        });
-
-        IUISwitch randomBlankLineSwitch = _randomBlankLineParagraphs ? GUI.Switch("ci-random-blank-line").On() : GUI.Switch("ci-random-blank-line").Off();
-        randomBlankLineSwitch.OnToggle(on =>
-        {
-            if (_loading || IsInitialToggle("ci-random-blank-line"))
-            {
-                return;
-            }
-
-            _randomBlankLineParagraphs = on;
-            SaveSettings();
-            Generate();
-        });
+        _randomBlankLineSwitch = _randomBlankLineParagraphs ? GUI.Switch("ci-random-blank-line").On() : GUI.Switch("ci-random-blank-line").Off();
+        _randomBlankLineSwitch.OnToggle(_ => OnSwitchChanged());
 
         static IUIElement RangeInput(IUIElement min, IUIElement max)
             => GUI.Stack().Horizontal().SmallSpacing().WithChildren(
@@ -650,7 +659,7 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
         _openingRow = GUI.Setting("ci-setting-opening")
             .Title("以原著开篇起句")
             .Description("首句固定为该书的著名开头，类似 Lorem ipsum dolor sit amet")
-            .InteractiveElement(openingSwitch);
+            .InteractiveElement(_openingSwitch);
 
         _corpusSentenceRow = GUI.Setting("ci-setting-para")
             .Title("每段句子数")
@@ -660,7 +669,7 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
         _corpusBlankRow = GUI.Setting("ci-setting-blank")
             .Title("段落间空行")
             .Description("段落之间空一行；关闭则只用单个换行分隔")
-            .InteractiveElement(blankLineSwitch);
+            .InteractiveElement(_blankLineSwitch);
 
         _countModeRow = GUI.Setting("ci-setting-count-mode")
             .Title("长度按")
@@ -675,12 +684,12 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
         _rareRow = GUI.Setting("ci-setting-rare")
             .Title("包含生僻字")
             .Description("混入 CJK 扩展区（Ext A / Ext B / 基本区尾部）的少见字符")
-            .InteractiveElement(rareSwitch);
+            .InteractiveElement(_rareSwitch);
 
         _paragraphRow = GUI.Setting("ci-setting-paragraph")
             .Title("模拟文章段落")
             .Description("按每段句子数分段、段间空行；关闭则输出连续的一段")
-            .InteractiveElement(paragraphSwitch);
+            .InteractiveElement(_paragraphSwitch);
 
         _randomSentenceRow = GUI.Setting("ci-setting-random-para")
             .Title("每段句子数")
@@ -690,12 +699,12 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
         _randomBlankRow = GUI.Setting("ci-setting-random-blank")
             .Title("段落间空行")
             .Description("段落之间空一行；关闭则只用单个换行分隔")
-            .InteractiveElement(randomBlankLineSwitch);
+            .InteractiveElement(_randomBlankLineSwitch);
 
         _punctuationRow = GUI.Setting("ci-setting-punctuation")
             .Title("包含标点符号")
             .Description("句末用句号 / 感叹号 / 问号，句中随机插入逗号")
-            .InteractiveElement(punctuationSwitch);
+            .InteractiveElement(_punctuationSwitch);
 
         _punctStyleRow = GUI.Setting("ci-setting-punct-style")
             .Title("标点风格")
@@ -705,7 +714,7 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
         _mixedRow = GUI.Setting("ci-setting-mixed")
             .Title("多语言混合")
             .Description("随机插入英文 / 西里尔 / 希腊文伪单词（无意义，长度不一）")
-            .InteractiveElement(mixedSwitch);
+            .InteractiveElement(_mixedSwitch);
 
         // 三列网格：一行放三个设置，避免纵向拉得过长
         _corpusGrid = GUI.Grid()
@@ -741,57 +750,24 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
         IUISwitch StressSwitch(string id, IpsumStressFlags flag)
         {
             IUISwitch toggle = (_stress & flag) != 0 ? GUI.Switch(id).On() : GUI.Switch(id).Off();
-            toggle.OnToggle(on =>
-            {
-                if (_loading || IsInitialToggle(id))
-                {
-                    return;
-                }
-
-                if (on)
-                {
-                    _stress |= flag;
-                }
-                else
-                {
-                    _stress &= ~flag;
-                }
-
-                SaveSettings();
-                Generate();
-            });
-
+            toggle.OnToggle(_ => OnSwitchChanged());
+            _stressSwitches.Add((flag, toggle));
             return toggle;
         }
 
-        IUISwitch FlagSwitch(string id, bool initial, Action<bool> apply)
+        IUISwitch FragmentSwitch(string id, IpsumFragmentFlags flag)
+        {
+            IUISwitch toggle = (_fragments & flag) != 0 ? GUI.Switch(id).On() : GUI.Switch(id).Off();
+            toggle.OnToggle(_ => OnSwitchChanged());
+            _fragmentSwitches.Add((flag, toggle));
+            return toggle;
+        }
+
+        IUISwitch Toggle(string id, bool initial)
         {
             IUISwitch toggle = initial ? GUI.Switch(id).On() : GUI.Switch(id).Off();
-            toggle.OnToggle(on =>
-            {
-                if (_loading || IsInitialToggle(id))
-                {
-                    return;
-                }
-
-                apply(on);
-                SaveSettings();
-                Generate();
-            });
-
+            toggle.OnToggle(_ => OnSwitchChanged());
             return toggle;
-        }
-
-        void SetFragment(IpsumFragmentFlags flag, bool on)
-        {
-            if (on)
-            {
-                _fragments |= flag;
-            }
-            else
-            {
-                _fragments &= ~flag;
-            }
         }
 
         IUISelectDropDownList DensitySelect(string id, IpsumDensity current, Action<IpsumDensity> apply)
@@ -871,13 +847,13 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
                 .ColumnMediumSpacing()
                 .RowMediumSpacing()
                 .Cells(
-                    GUI.Cell(0, 0, 1, 1, Row("ci-frag-url", "URL", "https://…?id=…", FlagSwitch("ci-sw-url", (_fragments & IpsumFragmentFlags.Url) != 0, on => SetFragment(IpsumFragmentFlags.Url, on)))),
-                    GUI.Cell(0, 1, 1, 1, Row("ci-frag-email", "邮箱", "name.tag@sub.example.co.uk", FlagSwitch("ci-sw-email", (_fragments & IpsumFragmentFlags.Email) != 0, on => SetFragment(IpsumFragmentFlags.Email, on)))),
-                    GUI.Cell(0, 2, 1, 1, Row("ci-frag-id", "UUID / 哈希", "32 / 40 / 64 位 hex", FlagSwitch("ci-sw-id", (_fragments & IpsumFragmentFlags.Identifier) != 0, on => SetFragment(IpsumFragmentFlags.Identifier, on)))),
-                    GUI.Cell(0, 3, 1, 1, Row("ci-frag-version", "版本号", "v1.2.3-beta.4+build.567", FlagSwitch("ci-sw-version", (_fragments & IpsumFragmentFlags.Version) != 0, on => SetFragment(IpsumFragmentFlags.Version, on)))),
-                    GUI.Cell(1, 0, 1, 1, Row("ci-frag-datetime", "日期时间", "2026-11-10 12:34:56 等格式", FlagSwitch("ci-sw-datetime", (_fragments & IpsumFragmentFlags.DateTime) != 0, on => SetFragment(IpsumFragmentFlags.DateTime, on)))),
-                    GUI.Cell(1, 1, 1, 1, Row("ci-frag-amount", "金额数值", "1,234,567.89 / 99.99% / 12,345 kg", FlagSwitch("ci-sw-amount", (_fragments & IpsumFragmentFlags.Amount) != 0, on => SetFragment(IpsumFragmentFlags.Amount, on)))),
-                    GUI.Cell(1, 2, 1, 1, Row("ci-frag-path", "文件路径", "/var/www/a/b/file.tar.gz", FlagSwitch("ci-sw-path", (_fragments & IpsumFragmentFlags.FilePath) != 0, on => SetFragment(IpsumFragmentFlags.FilePath, on)))),
+                    GUI.Cell(0, 0, 1, 1, Row("ci-frag-url", "URL", "https://…?id=…", FragmentSwitch("ci-sw-url", IpsumFragmentFlags.Url))),
+                    GUI.Cell(0, 1, 1, 1, Row("ci-frag-email", "邮箱", "name.tag@sub.example.co.uk", FragmentSwitch("ci-sw-email", IpsumFragmentFlags.Email))),
+                    GUI.Cell(0, 2, 1, 1, Row("ci-frag-id", "UUID / 哈希", "32 / 40 / 64 位 hex", FragmentSwitch("ci-sw-id", IpsumFragmentFlags.Identifier))),
+                    GUI.Cell(0, 3, 1, 1, Row("ci-frag-version", "版本号", "v1.2.3-beta.4+build.567", FragmentSwitch("ci-sw-version", IpsumFragmentFlags.Version))),
+                    GUI.Cell(1, 0, 1, 1, Row("ci-frag-datetime", "日期时间", "2026-11-10 12:34:56 等格式", FragmentSwitch("ci-sw-datetime", IpsumFragmentFlags.DateTime))),
+                    GUI.Cell(1, 1, 1, 1, Row("ci-frag-amount", "金额数值", "1,234,567.89 / 99.99% / 12,345 kg", FragmentSwitch("ci-sw-amount", IpsumFragmentFlags.Amount))),
+                    GUI.Cell(1, 2, 1, 1, Row("ci-frag-path", "文件路径", "/var/www/a/b/file.tar.gz", FragmentSwitch("ci-sw-path", IpsumFragmentFlags.FilePath))),
                     GUI.Cell(1, 3, 1, 1, Row("ci-frag-density", "出现频率", "每个片段出现的概率", DensitySelect("ci-frag-density-select", _fragmentDensity, d => _fragmentDensity = d)))));
 
         _shapeCard = GUI.Card(
@@ -899,14 +875,14 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
                         _spaceStyle,
                         [("无空格", IpsumSpaceStyle.None), ("单空格", IpsumSpaceStyle.Single), ("多空格", IpsumSpaceStyle.Multiple)],
                         v => _spaceStyle = v))),
-                    GUI.Cell(0, 3, 1, 1, Row("ci-shape-indent", "首行缩进", "段首加两个全角空格", FlagSwitch("ci-sw-indent", _indentFirstLine, on => _indentFirstLine = on))),
+                    GUI.Cell(0, 3, 1, 1, Row("ci-shape-indent", "首行缩进", "段首加两个全角空格", (_indentSwitch = Toggle("ci-sw-indent", _indentFirstLine)))),
                     GUI.Cell(1, 0, 1, 1, Row("ci-shape-list", "列表符号", "段首加项目符号或序号", EnumSelect(
                         "ci-shape-list-select",
                         _listStyle,
                         [("不加", IpsumListStyle.None), ("项目符号 •", IpsumListStyle.Bullets), ("有序编号 1.", IpsumListStyle.Ordered)],
                         v => _listStyle = v))),
-                    GUI.Cell(1, 1, 1, 1, Row("ci-shape-quote", "引用块", "段首加 > 前缀", FlagSwitch("ci-sw-quote", _quoteBlocks, on => _quoteBlocks = on))),
-                    GUI.Cell(1, 2, 1, 1, Row("ci-shape-code", "行内代码", "偶尔把词包成 `code`，测等宽字体", FlagSwitch("ci-sw-code", _inlineCode, on => _inlineCode = on)))));
+                    GUI.Cell(1, 1, 1, 1, Row("ci-shape-quote", "引用块", "段首加 > 前缀", (_quoteSwitch = Toggle("ci-sw-quote", _quoteBlocks)))),
+                    GUI.Cell(1, 2, 1, 1, Row("ci-shape-code", "行内代码", "偶尔把词包成 `code`，测等宽字体", (_inlineCodeSwitch = Toggle("ci-sw-code", _inlineCode))))));
 
         IUIElement settings = GUI.Stack().Vertical().MediumSpacing().WithChildren(
             GUI.Label().Text("配置").Style(UILabelStyle.BodyStrong),
@@ -940,6 +916,11 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
         {
             return;
         }
+
+        // 以控件为准：同步开关状态 → 落盘 → 刷新可见性（折叠开关就靠这一步生效）
+        PullSwitchState();
+        SaveSettings();
+        UpdateVisibility();
 
         try
         {
@@ -1013,14 +994,14 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
         Show(_punctStyleRow, _punctuation);
 
         Show(_advancedRow, !corpus);
-        Show(_stressCard, !corpus && _showAdvanced);
-        Show(_fragmentCard, !corpus && _showAdvanced);
-        Show(_shapeCard, !corpus && _showAdvanced);
+        Show(_stressCard, !corpus && _advancedGroup == IpsumAdvancedGroup.Stress);
+        Show(_fragmentCard, !corpus && _advancedGroup == IpsumAdvancedGroup.Fragment);
+        Show(_shapeCard, !corpus && _advancedGroup == IpsumAdvancedGroup.Shape);
 
-        // 收起时用一行说明"哪些高级项正在生效"，避免藏起来就看不见
+        // 收起状态（或展开的是别的组）时，用一行说明"哪些高级项正在生效"
         string summary = BuildAdvancedSummary();
         GUI.Text(_advancedHint, summary);
-        Show(_advancedHint, !corpus && !_showAdvanced && summary.Length > 0);
+        Show(_advancedHint, !corpus && _advancedGroup != IpsumAdvancedGroup.Shape && summary.Length > 0);
     }
 
     /// <summary>高级选项收起时，用一句话说明哪些分组正在生效。</summary>
@@ -1134,7 +1115,7 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
             if (state.QuoteBlocks is not null) _quoteBlocks = state.QuoteBlocks.Value;
             if (state.InlineCode is not null) _inlineCode = state.InlineCode.Value;
             _spaceStyle = ParseEnum(state.SpaceStyle, IpsumSpaceStyle.Single);
-            if (state.ShowAdvanced is not null) _showAdvanced = state.ShowAdvanced.Value;
+            _advancedGroup = ParseEnum(state.AdvancedGroup, IpsumAdvancedGroup.None);
         }
         catch
         {
@@ -1159,7 +1140,7 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
                 QuoteBlocks = _quoteBlocks,
                 InlineCode = _inlineCode,
                 SpaceStyle = _spaceStyle.ToString(),
-                ShowAdvanced = _showAdvanced
+                AdvancedGroup = _advancedGroup.ToString()
             }));
         }
         catch
@@ -1181,7 +1162,7 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
         public bool? QuoteBlocks { get; set; }
         public bool? InlineCode { get; set; }
         public string? SpaceStyle { get; set; }
-        public bool? ShowAdvanced { get; set; }
+        public string? AdvancedGroup { get; set; }
     }
 
     private static TEnum ParseEnum<TEnum>(string? value, TEnum fallback) where TEnum : struct, Enum

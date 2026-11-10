@@ -54,6 +54,17 @@ internal enum IpsumFragmentFlags
     FilePath = 1 << 6
 }
 
+/// <summary>
+/// 高级分组：一次只显示一组，避免三组同时展开把结果框压扁。
+/// </summary>
+internal enum IpsumAdvancedGroup
+{
+    None = 0,
+    Stress = 1,
+    Fragment = 2,
+    Shape = 3
+}
+
 /// <summary>密度档位（压力字符 / 结构化片段 / 标点）。</summary>
 internal enum IpsumDensity
 {
