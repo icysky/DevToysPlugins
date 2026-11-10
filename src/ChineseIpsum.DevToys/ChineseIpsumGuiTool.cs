@@ -523,11 +523,15 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
         _randomBlankLineSwitch = _randomBlankLineParagraphs ? GUI.Switch("ci-random-blank-line").On() : GUI.Switch("ci-random-blank-line").Off();
         _randomBlankLineSwitch.OnToggle(_ => OnSwitchChanged());
 
+        // 用比例网格而不是 Stack：Stack 的子项在窄列里会被压成零宽，数字看不见
         static IUIElement RangeInput(IUIElement min, IUIElement max)
-            => GUI.Stack().Horizontal().SmallSpacing().WithChildren(
-                min,
-                GUI.Label().Text("~"),
-                max);
+            => GUI.Grid()
+                .Columns(GUI.Fraction(1), UIGridLength.Auto, GUI.Fraction(1))
+                .ColumnSmallSpacing()
+                .Cells(
+                    GUI.Cell(0, 0, 1, 1, min),
+                    GUI.Cell(0, 1, 1, 1, GUI.Label().Text("~")),
+                    GUI.Cell(0, 2, 1, 1, max));
 
         IUINumberInput corpusMinInput = GUI.NumberInput(
                 "ci-para-min",
@@ -627,7 +631,7 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
 
         _corpusSentenceRow = GUI.Setting("ci-setting-para")
             .Title("每段句子数")
-            .Description("每段随机取 N~M 句（含端点），仅「段落」类型生效")
+            .Description("N~M 句，仅「段落」类型生效")
             .InteractiveElement(RangeInput(corpusMinInput, corpusMaxInput));
 
         _corpusBlankRow = GUI.Setting("ci-setting-blank")
@@ -657,7 +661,7 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
 
         _randomSentenceRow = GUI.Setting("ci-setting-random-para")
             .Title("每段句子数")
-            .Description("每段随机取 N~M 句（含端点），开启「模拟文章段落」时生效")
+            .Description("N~M 句，仅段落模式生效")
             .InteractiveElement(RangeInput(randomMinInput, randomMaxInput));
 
         _randomBlankRow = GUI.Setting("ci-setting-random-blank")
