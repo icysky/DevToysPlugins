@@ -156,8 +156,7 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
 
     private IpsumSpaceStyle _spaceStyle = IpsumSpaceStyle.Single;
 
-    /// <summary>当前展开的高级分组（一次只显示一组，保证结果框高度）。</summary>
-    private IpsumAdvancedGroup _advancedGroup = IpsumAdvancedGroup.None;
+
 
     // 开关一律保留引用：状态从控件读，而不是从事件参数读（见 PullSwitchState）
     private IUISwitch _openingSwitch = default!;
@@ -201,9 +200,7 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
 
     private IUIElement _shapeCard = default!;
 
-    private IUIElement _advancedRow = default!;
 
-    private IUILabel _advancedHint = default!;
 
     private IUIElement _corpusSentenceRow = default!;
 
@@ -424,39 +421,6 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
             });
 
         // 高级选项折叠：默认收起，把纵向空间让给结果框
-        IUIDropDownListItem[] advancedItems =
-        [
-            GUI.Item("收起", IpsumAdvancedGroup.None),
-            GUI.Item("字符压力", IpsumAdvancedGroup.Stress),
-            GUI.Item("结构化片段", IpsumAdvancedGroup.Fragment),
-            GUI.Item("段落形态", IpsumAdvancedGroup.Shape)
-        ];
-
-        IUISelectDropDownList advancedSelect = GUI.SelectDropDownList("ci-advanced")
-            .WithItems(advancedItems)
-            .Select(advancedItems[Math.Clamp((int)_advancedGroup, 0, advancedItems.Length - 1)])
-            .OnItemSelected(item =>
-            {
-                if (_loading || item?.Value is not IpsumAdvancedGroup group)
-                {
-                    return;
-                }
-
-                _advancedGroup = group;
-                SaveSettings();
-                UpdateVisibility();
-                Generate();
-            });
-
-        _advancedRow = GUI.Setting("ci-setting-advanced")
-            .Title("高级分组")
-            .Description("一次只展开一组（字符压力 / 结构化片段 / 段落形态），保证结果框始终够高")
-            .InteractiveElement(advancedSelect);
-
-        _advancedHint = GUI.Label("ci-advanced-hint")
-            .Style(UILabelStyle.Caption)
-            .WrapIfNeeded();
-
         IUINumberInput lengthInput = GUI.NumberInput(
                 "ci-length",
                 IpsumGenerator.MinLength,
@@ -716,35 +680,37 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
             .Description("随机插入英文 / 西里尔 / 希腊文伪单词（无意义，长度不一）")
             .InteractiveElement(_mixedSwitch);
 
-        // 三列网格：一行放三个设置，避免纵向拉得过长
+        // 双列网格：左侧设置区变窄了，一行两个设置刚好
         _corpusGrid = GUI.Grid()
-            .Columns(GUI.Fraction(1), GUI.Fraction(1), GUI.Fraction(1))
-            .Rows(UIGridLength.Auto, UIGridLength.Auto)
+            .Columns(GUI.Fraction(1), GUI.Fraction(1))
+            .Rows(UIGridLength.Auto, UIGridLength.Auto, UIGridLength.Auto)
             .ColumnMediumSpacing()
             .RowMediumSpacing()
             .Cells(
                 GUI.Cell(0, 0, 1, 1, _corpusRow),
                 GUI.Cell(0, 1, 1, 1, _unitRow),
-                GUI.Cell(0, 2, 1, 1, _lengthRow),
-                GUI.Cell(1, 0, 1, 1, _corpusSentenceRow),
-                GUI.Cell(1, 1, 1, 1, _corpusBlankRow),
-                GUI.Cell(1, 2, 1, 1, _openingRow));
+                GUI.Cell(1, 0, 1, 1, _lengthRow),
+                GUI.Cell(1, 1, 1, 1, _corpusSentenceRow),
+                GUI.Cell(2, 0, 1, 1, _corpusBlankRow),
+                GUI.Cell(2, 1, 1, 1, _openingRow));
 
         _randomGrid = GUI.Grid()
-            .Columns(GUI.Fraction(1), GUI.Fraction(1), GUI.Fraction(1))
-            .Rows(UIGridLength.Auto, UIGridLength.Auto, UIGridLength.Auto)
+            .Columns(GUI.Fraction(1), GUI.Fraction(1))
+            .Rows(
+                UIGridLength.Auto, UIGridLength.Auto, UIGridLength.Auto,
+                UIGridLength.Auto, UIGridLength.Auto)
             .ColumnMediumSpacing()
             .RowMediumSpacing()
             .Cells(
                 GUI.Cell(0, 0, 1, 1, _countModeRow),
                 GUI.Cell(0, 1, 1, 1, _randomLengthRow),
-                GUI.Cell(0, 2, 1, 1, _rareRow),
-                GUI.Cell(1, 0, 1, 1, _paragraphRow),
-                GUI.Cell(1, 1, 1, 1, _randomSentenceRow),
-                GUI.Cell(1, 2, 1, 1, _randomBlankRow),
-                GUI.Cell(2, 0, 1, 1, _punctuationRow),
-                GUI.Cell(2, 1, 1, 1, _punctStyleRow),
-                GUI.Cell(2, 2, 1, 1, _mixedRow));
+                GUI.Cell(1, 0, 1, 1, _rareRow),
+                GUI.Cell(1, 1, 1, 1, _paragraphRow),
+                GUI.Cell(2, 0, 1, 1, _randomSentenceRow),
+                GUI.Cell(2, 1, 1, 1, _randomBlankRow),
+                GUI.Cell(3, 0, 1, 1, _punctuationRow),
+                GUI.Cell(3, 1, 1, 1, _punctStyleRow),
+                GUI.Cell(4, 0, 1, 1, _mixedRow));
 
         // ---- 字符压力 / 结构化片段 / 段落形态（仅随机模式可见，默认全关） ----
         IUISwitch StressSwitch(string id, IpsumStressFlags flag)
@@ -823,66 +789,68 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
         _stressCard = GUI.Card(
             "字符压力（勾选后才混入，默认全关）",
             GUI.Grid()
-                .Columns(GUI.Fraction(1), GUI.Fraction(1), GUI.Fraction(1), GUI.Fraction(1))
-                .Rows(UIGridLength.Auto, UIGridLength.Auto, UIGridLength.Auto)
+                .Columns(GUI.Fraction(1), GUI.Fraction(1))
+                .Rows(
+                    UIGridLength.Auto, UIGridLength.Auto, UIGridLength.Auto,
+                    UIGridLength.Auto, UIGridLength.Auto)
                 .ColumnMediumSpacing()
                 .RowMediumSpacing()
                 .Cells(
                     GUI.Cell(0, 0, 1, 1, Row("ci-stress-emoji", "Emoji", "含 ZWJ 组合、肤色修饰、国旗", StressSwitch("ci-sw-emoji", IpsumStressFlags.Emoji))),
-                    GUI.Cell(0, 1, 1, 1, Row("ci-stress-cjk", "日文 / 韩文", "假名与谚文，测中日韩字体回退", StressSwitch("ci-sw-cjk", IpsumStressFlags.EastAsian))),
-                    GUI.Cell(0, 2, 1, 1, Row("ci-stress-rtl", "RTL 文字", "阿拉伯文 / 希伯来文，测 BiDi 与括号镜像", StressSwitch("ci-sw-rtl", IpsumStressFlags.Rtl))),
-                    GUI.Cell(0, 3, 1, 1, Row("ci-stress-math", "数学与符号", "∑ ∫ √ ≤ → ↔ ┌┬┐ • † ※", StressSwitch("ci-sw-math", IpsumStressFlags.MathSymbols))),
-                    GUI.Cell(1, 0, 1, 1, Row("ci-stress-latin", "拉丁扩展", "é ü ñ ç ß 与组合音标", StressSwitch("ci-sw-latin", IpsumStressFlags.LatinExtended))),
-                    GUI.Cell(1, 1, 1, 1, Row("ci-stress-forms", "特殊数字与单位", "¹²³ ½ ① Ⅰ ¥ ℃ ㎡ ‰", StressSwitch("ci-sw-forms", IpsumStressFlags.SpecialForms))),
-                    GUI.Cell(1, 2, 1, 1, Row("ci-stress-fullwidth", "全角字符", "ＡＢＣ１２３，测中西文混排间距", StressSwitch("ci-sw-fullwidth", IpsumStressFlags.FullWidth))),
-                    GUI.Cell(1, 3, 1, 1, Row("ci-stress-invisible", "不可见字符", "NBSP / 零宽空格 / 软连字符 / LRM", StressSwitch("ci-sw-invisible", IpsumStressFlags.Invisible))),
-                    GUI.Cell(2, 0, 1, 1, Row("ci-stress-longrun", "超长不可断串", "40~200 个连续字母，测 overflow-wrap", StressSwitch("ci-sw-longrun", IpsumStressFlags.LongRun))),
-                    GUI.Cell(2, 1, 1, 1, Row("ci-stress-density", "压力强度", "每个字插入压力字符的概率", DensitySelect("ci-stress-density-select", _stressDensity, d => _stressDensity = d)))));
+                    GUI.Cell(0, 1, 1, 1, Row("ci-stress-cjk", "日文 / 韩文", "假名与谚文，测字体回退", StressSwitch("ci-sw-cjk", IpsumStressFlags.EastAsian))),
+                    GUI.Cell(1, 0, 1, 1, Row("ci-stress-rtl", "RTL 文字", "阿拉伯 / 希伯来，测 BiDi 与镜像", StressSwitch("ci-sw-rtl", IpsumStressFlags.Rtl))),
+                    GUI.Cell(1, 1, 1, 1, Row("ci-stress-math", "数学与符号", "∑ ∫ √ ≤ → ↔ ┌┬┐ • † ※", StressSwitch("ci-sw-math", IpsumStressFlags.MathSymbols))),
+                    GUI.Cell(2, 0, 1, 1, Row("ci-stress-latin", "拉丁扩展", "é ü ñ ç ß 与组合音标", StressSwitch("ci-sw-latin", IpsumStressFlags.LatinExtended))),
+                    GUI.Cell(2, 1, 1, 1, Row("ci-stress-forms", "特殊数字与单位", "¹²³ ½ ① Ⅰ ¥ ℃ ㎡ ‰", StressSwitch("ci-sw-forms", IpsumStressFlags.SpecialForms))),
+                    GUI.Cell(3, 0, 1, 1, Row("ci-stress-fullwidth", "全角字符", "ＡＢＣ１２３，测中西文混排", StressSwitch("ci-sw-fullwidth", IpsumStressFlags.FullWidth))),
+                    GUI.Cell(3, 1, 1, 1, Row("ci-stress-invisible", "不可见字符", "NBSP / 零宽空格 / 软连字符", StressSwitch("ci-sw-invisible", IpsumStressFlags.Invisible))),
+                    GUI.Cell(4, 0, 1, 1, Row("ci-stress-longrun", "超长不可断串", "40~200 字母，测 overflow-wrap", StressSwitch("ci-sw-longrun", IpsumStressFlags.LongRun))),
+                    GUI.Cell(4, 1, 1, 1, Row("ci-stress-density", "压力强度", "插入压力字符的概率", DensitySelect("ci-stress-density-select", _stressDensity, d => _stressDensity = d)))));
 
         _fragmentCard = GUI.Card(
             "结构化片段（有格式、无意义）",
             GUI.Grid()
-                .Columns(GUI.Fraction(1), GUI.Fraction(1), GUI.Fraction(1), GUI.Fraction(1))
-                .Rows(UIGridLength.Auto, UIGridLength.Auto)
+                .Columns(GUI.Fraction(1), GUI.Fraction(1))
+                .Rows(UIGridLength.Auto, UIGridLength.Auto, UIGridLength.Auto, UIGridLength.Auto)
                 .ColumnMediumSpacing()
                 .RowMediumSpacing()
                 .Cells(
                     GUI.Cell(0, 0, 1, 1, Row("ci-frag-url", "URL", "https://…?id=…", FragmentSwitch("ci-sw-url", IpsumFragmentFlags.Url))),
                     GUI.Cell(0, 1, 1, 1, Row("ci-frag-email", "邮箱", "name.tag@sub.example.co.uk", FragmentSwitch("ci-sw-email", IpsumFragmentFlags.Email))),
-                    GUI.Cell(0, 2, 1, 1, Row("ci-frag-id", "UUID / 哈希", "32 / 40 / 64 位 hex", FragmentSwitch("ci-sw-id", IpsumFragmentFlags.Identifier))),
-                    GUI.Cell(0, 3, 1, 1, Row("ci-frag-version", "版本号", "v1.2.3-beta.4+build.567", FragmentSwitch("ci-sw-version", IpsumFragmentFlags.Version))),
-                    GUI.Cell(1, 0, 1, 1, Row("ci-frag-datetime", "日期时间", "2026-11-10 12:34:56 等格式", FragmentSwitch("ci-sw-datetime", IpsumFragmentFlags.DateTime))),
-                    GUI.Cell(1, 1, 1, 1, Row("ci-frag-amount", "金额数值", "1,234,567.89 / 99.99% / 12,345 kg", FragmentSwitch("ci-sw-amount", IpsumFragmentFlags.Amount))),
-                    GUI.Cell(1, 2, 1, 1, Row("ci-frag-path", "文件路径", "/var/www/a/b/file.tar.gz", FragmentSwitch("ci-sw-path", IpsumFragmentFlags.FilePath))),
-                    GUI.Cell(1, 3, 1, 1, Row("ci-frag-density", "出现频率", "每个片段出现的概率", DensitySelect("ci-frag-density-select", _fragmentDensity, d => _fragmentDensity = d)))));
+                    GUI.Cell(1, 0, 1, 1, Row("ci-frag-id", "UUID / 哈希", "32 / 40 / 64 位 hex", FragmentSwitch("ci-sw-id", IpsumFragmentFlags.Identifier))),
+                    GUI.Cell(1, 1, 1, 1, Row("ci-frag-version", "版本号", "v1.2.3-beta.4+build.567", FragmentSwitch("ci-sw-version", IpsumFragmentFlags.Version))),
+                    GUI.Cell(2, 0, 1, 1, Row("ci-frag-datetime", "日期时间", "2026-11-10 12:34:56 等格式", FragmentSwitch("ci-sw-datetime", IpsumFragmentFlags.DateTime))),
+                    GUI.Cell(2, 1, 1, 1, Row("ci-frag-amount", "金额数值", "1,234,567.89 / 99.99% / 12,345 kg", FragmentSwitch("ci-sw-amount", IpsumFragmentFlags.Amount))),
+                    GUI.Cell(3, 0, 1, 1, Row("ci-frag-path", "文件路径", "/var/www/a/b/file.tar.gz", FragmentSwitch("ci-sw-path", IpsumFragmentFlags.FilePath))),
+                    GUI.Cell(3, 1, 1, 1, Row("ci-frag-density", "出现频率", "每个片段出现的概率", DensitySelect("ci-frag-density-select", _fragmentDensity, d => _fragmentDensity = d)))));
 
         _shapeCard = GUI.Card(
             "段落形态",
             GUI.Grid()
-                .Columns(GUI.Fraction(1), GUI.Fraction(1), GUI.Fraction(1), GUI.Fraction(1))
-                .Rows(UIGridLength.Auto, UIGridLength.Auto)
+                .Columns(GUI.Fraction(1), GUI.Fraction(1))
+                .Rows(UIGridLength.Auto, UIGridLength.Auto, UIGridLength.Auto, UIGridLength.Auto)
                 .ColumnMediumSpacing()
                 .RowMediumSpacing()
                 .Cells(
-                    GUI.Cell(0, 0, 1, 1, Row("ci-shape-length", "段落长短", "以「每段句子数」范围为基准", EnumSelect(
+                    GUI.Cell(0, 0, 1, 1, Row("ci-shape-length", "段落长短", "以「每段句子数」为基准", EnumSelect(
                         "ci-shape-length-select",
                         _paragraphShape,
                         [("短段多", IpsumParagraphShape.Short), ("混合", IpsumParagraphShape.Mixed), ("长段多", IpsumParagraphShape.Long)],
                         v => _paragraphShape = v))),
                     GUI.Cell(0, 1, 1, 1, Row("ci-shape-punct", "标点密度", "句中逗号的密集程度", DensitySelect("ci-shape-punct-select", _punctuationDensity, d => _punctuationDensity = d))),
-                    GUI.Cell(0, 2, 1, 1, Row("ci-shape-space", "空格策略", "外文词前的空格：无 / 单 / 多", EnumSelect(
+                    GUI.Cell(1, 0, 1, 1, Row("ci-shape-space", "空格策略", "外文词前：无 / 单 / 多", EnumSelect(
                         "ci-shape-space-select",
                         _spaceStyle,
                         [("无空格", IpsumSpaceStyle.None), ("单空格", IpsumSpaceStyle.Single), ("多空格", IpsumSpaceStyle.Multiple)],
                         v => _spaceStyle = v))),
-                    GUI.Cell(0, 3, 1, 1, Row("ci-shape-indent", "首行缩进", "段首加两个全角空格", (_indentSwitch = Toggle("ci-sw-indent", _indentFirstLine)))),
-                    GUI.Cell(1, 0, 1, 1, Row("ci-shape-list", "列表符号", "段首加项目符号或序号", EnumSelect(
+                    GUI.Cell(1, 1, 1, 1, Row("ci-shape-indent", "首行缩进", "段首加两个全角空格", (_indentSwitch = Toggle("ci-sw-indent", _indentFirstLine)))),
+                    GUI.Cell(2, 0, 1, 1, Row("ci-shape-list", "列表符号", "段首加项目符号或序号", EnumSelect(
                         "ci-shape-list-select",
                         _listStyle,
                         [("不加", IpsumListStyle.None), ("项目符号 •", IpsumListStyle.Bullets), ("有序编号 1.", IpsumListStyle.Ordered)],
                         v => _listStyle = v))),
-                    GUI.Cell(1, 1, 1, 1, Row("ci-shape-quote", "引用块", "段首加 > 前缀", (_quoteSwitch = Toggle("ci-sw-quote", _quoteBlocks)))),
-                    GUI.Cell(1, 2, 1, 1, Row("ci-shape-code", "行内代码", "偶尔把词包成 `code`，测等宽字体", (_inlineCodeSwitch = Toggle("ci-sw-code", _inlineCode))))));
+                    GUI.Cell(2, 1, 1, 1, Row("ci-shape-quote", "引用块", "段首加 > 前缀", (_quoteSwitch = Toggle("ci-sw-quote", _quoteBlocks)))),
+                    GUI.Cell(3, 0, 1, 1, Row("ci-shape-code", "行内代码", "把词包成 `code`，测等宽字体", (_inlineCodeSwitch = Toggle("ci-sw-code", _inlineCode))))));
 
         IUIElement settings = GUI.Stack().Vertical().MediumSpacing().WithChildren(
             GUI.Label().Text("配置").Style(UILabelStyle.BodyStrong),
@@ -890,8 +858,6 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
                 .Title("来源类型")
                 .Description("名著节选有语义；随机乱文按规则生成无意义文本，适合测试排版与字号")
                 .InteractiveElement(modeSelect),
-            _advancedRow,
-            _advancedHint,
             _corpusGrid,
             _randomGrid,
             _stressCard,
@@ -900,14 +866,15 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
 
         IUIElement resultArea = GUI.CommandBarExtraContent<IUIMultiLineTextInput>(_output, _refreshButton);
 
+        // 全局左右分栏：左侧设置（双列），右侧结果占满整个高度
         return new UIToolView(
             GUI.Grid()
-                .Columns(GUI.Fraction(1))
-                .Rows(UIGridLength.Auto, GUI.Fraction(1))
-                .RowLargeSpacing()
+                .Columns(GUI.Fraction(1), GUI.Fraction(1))
+                .ColumnLargeSpacing()
+                .Rows(GUI.Fraction(1))
                 .Cells(
                     GUI.Cell(0, 0, 1, 1, GUI.Stack().Vertical().MediumSpacing().WithChildren(_infoBar, settings)),
-                    GUI.Cell(1, 0, 1, 1, resultArea)));
+                    GUI.Cell(0, 1, 1, 1, resultArea)));
     }
 
     private void Generate()
@@ -993,48 +960,10 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
         Show(_randomBlankRow, _paragraphs);
         Show(_punctStyleRow, _punctuation);
 
-        Show(_advancedRow, !corpus);
-        Show(_stressCard, !corpus && _advancedGroup == IpsumAdvancedGroup.Stress);
-        Show(_fragmentCard, !corpus && _advancedGroup == IpsumAdvancedGroup.Fragment);
-        Show(_shapeCard, !corpus && _advancedGroup == IpsumAdvancedGroup.Shape);
-
-        // 收起状态（或展开的是别的组）时，用一行说明"哪些高级项正在生效"
-        string summary = BuildAdvancedSummary();
-        GUI.Text(_advancedHint, summary);
-        Show(_advancedHint, !corpus && _advancedGroup != IpsumAdvancedGroup.Shape && summary.Length > 0);
-    }
-
-    /// <summary>高级选项收起时，用一句话说明哪些分组正在生效。</summary>
-    private string BuildAdvancedSummary()
-    {
-        List<string> parts = [];
-
-        if (_stress != IpsumStressFlags.None)
-        {
-            parts.Add($"字符压力（{_stress}）");
-        }
-
-        if (_fragments != IpsumFragmentFlags.None)
-        {
-            parts.Add($"结构化片段（{_fragments}）");
-        }
-
-        bool shapeCustomized = _indentFirstLine
-                               || _listStyle != IpsumListStyle.None
-                               || _quoteBlocks
-                               || _inlineCode
-                               || _paragraphShape != IpsumParagraphShape.Mixed
-                               || _punctuationDensity != IpsumDensity.Medium
-                               || _spaceStyle != IpsumSpaceStyle.Single;
-
-        if (shapeCustomized)
-        {
-            parts.Add("段落形态已自定义");
-        }
-
-        return parts.Count == 0
-            ? string.Empty
-            : "高级选项正在生效：" + string.Join("；", parts) + " —— 点上面的开关可展开调整。";
+        // 三张高级卡片常驻显示（左右布局里纵向空间不再紧张，不需要收起/分组）
+        Show(_stressCard, !corpus);
+        Show(_fragmentCard, !corpus);
+        Show(_shapeCard, !corpus);
     }
 
     private static void Show(IUIElement element, bool visible)
@@ -1115,7 +1044,7 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
             if (state.QuoteBlocks is not null) _quoteBlocks = state.QuoteBlocks.Value;
             if (state.InlineCode is not null) _inlineCode = state.InlineCode.Value;
             _spaceStyle = ParseEnum(state.SpaceStyle, IpsumSpaceStyle.Single);
-            _advancedGroup = ParseEnum(state.AdvancedGroup, IpsumAdvancedGroup.None);
+
         }
         catch
         {
@@ -1139,8 +1068,7 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
                 ListStyle = _listStyle.ToString(),
                 QuoteBlocks = _quoteBlocks,
                 InlineCode = _inlineCode,
-                SpaceStyle = _spaceStyle.ToString(),
-                AdvancedGroup = _advancedGroup.ToString()
+                SpaceStyle = _spaceStyle.ToString()
             }));
         }
         catch
@@ -1162,7 +1090,6 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
         public bool? QuoteBlocks { get; set; }
         public bool? InlineCode { get; set; }
         public string? SpaceStyle { get; set; }
-        public string? AdvancedGroup { get; set; }
     }
 
     private static TEnum ParseEnum<TEnum>(string? value, TEnum fallback) where TEnum : struct, Enum
