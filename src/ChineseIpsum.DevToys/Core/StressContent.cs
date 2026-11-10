@@ -19,8 +19,11 @@ internal enum IpsumStressFlags
     /// <summary>阿拉伯文 / 希伯来文（RTL）。</summary>
     Rtl = 1 << 2,
 
-    /// <summary>数学、箭头、制表、项目符号等符号字体。</summary>
+    /// <summary>数学运算符与箭头（∑ ⊕ ⊗ ⦿ ⇒ ⟹ 等）。</summary>
     MathSymbols = 1 << 3,
+
+    /// <summary>图形与杂项符号（■ ◆ ● ★ ☀ ☎ ♠ ♪ ✓ 制表符 带圈数字等）。</summary>
+    GraphicSymbols = 1 << 9,
 
     /// <summary>带变音符号的拉丁字母（含组合音标）。</summary>
     LatinExtended = 1 << 4,
@@ -106,10 +109,27 @@ internal static class StressContent
     private const string ArabicChars = "ابتثجحخدذرزسشصضطظعغفقكلمنهوي";
     private const string HebrewChars = "אבגדהוזחטיכלמנסעפצקרשת";
 
+    // 数学运算符（U+2200–22FF / U+2A00–2AFF）与各种箭头（U+2190–21FF / U+27F0 起）
+    // 这些字符经常在字体里缺字，单独列出来便于观察豆腐块
     private static readonly string[] MathSymbols =
     [
-        "∑", "∫", "√", "±", "≠", "≤", "≥", "∞", "≈", "∝", "→", "←", "↔", "⇒", "⇔",
-        "┌┬┐", "└┴┘", "├┼┤", "•", "◦", "▪", "†", "‡", "※", "№", "§", "¶", "‰", "⌘", "⏎"
+        "∑", "∏", "∫", "∮", "√", "∛", "±", "≠", "≤", "≥", "∞", "≈", "∝", "≅", "≡",
+        "⊂", "⊃", "⊆", "⊇", "∈", "∉", "∅", "∀", "∃", "∴", "∵", "⊥", "∠", "≪", "≫",
+        "⊕", "⊖", "⊗", "⊘", "⊙", "⊚", "⊛", "⊞", "⊟", "⊠", "⊡", "⦿", "⦾", "⦁",
+        "⟀", "⟂", "⟐", "⟡", "⟢", "⟣", "⟦", "⟧", "⟨", "⟩",
+        "→", "←", "↔", "↕", "⇒", "⇔", "⇐", "⇑", "⇓", "⟶", "⟵", "⟷", "⟹", "⟺"
+    ];
+
+    // 几何图形（U+25A0–25FF）、杂项符号（U+2600–26FF）、Dingbats（U+2700–27BF）、
+    // 制表符（U+2500–257F）与带圈数字，用来测符号字体回退与行高
+    private static readonly string[] GraphicSymbols =
+    [
+        "■", "□", "▪", "▫", "▲", "△", "▶", "▷", "▼", "▽", "◀", "◁", "◆", "◇",
+        "○", "●", "◐", "◑", "★", "☆", "✦", "✧", "✳", "✴", "❀", "❄", "❖",
+        "✔", "✓", "✗", "✘", "☀", "☁", "☂", "☃", "☎", "☕", "☘", "☯",
+        "♠", "♣", "♥", "♦", "♪", "♫", "♬", "①", "⑩", "⑴", "⒈",
+        "─", "│", "┌", "┐", "└", "┘", "├", "┤", "┬", "┴", "┼",
+        "═", "║", "╔", "╗", "╚", "╝", "╬", "╱", "╲", "╳"
     ];
 
     private static readonly string[] LatinExtended =
@@ -146,6 +166,7 @@ internal static class StressContent
         IpsumStressFlags.EastAsian => NextEastAsian(random),
         IpsumStressFlags.Rtl => NextRtl(random),
         IpsumStressFlags.MathSymbols => MathSymbols[random.Next(MathSymbols.Length)],
+        IpsumStressFlags.GraphicSymbols => GraphicSymbols[random.Next(GraphicSymbols.Length)],
         IpsumStressFlags.LatinExtended => LatinExtended[random.Next(LatinExtended.Length)],
         IpsumStressFlags.SpecialForms => SpecialForms[random.Next(SpecialForms.Length)],
         IpsumStressFlags.FullWidth => NextFullWidth(random),

@@ -519,10 +519,25 @@ Check("RTL：出现阿拉伯文或希伯来文", () =>
         RandomTextGenerator.Generate(new RandomTextOptions { Length = 600, Stress = IpsumStressFlags.Rtl }),
         r => r.Value is >= 0x0590 and <= 0x06FF));
 
-Check("数学与符号：出现 ∑ / 箭头 / 制表符", () =>
+Check("数学运算符：出现 ∑ ⊕ ⦿ / 各种箭头", () =>
     HasRune(
-        RandomTextGenerator.Generate(new RandomTextOptions { Length = 600, Stress = IpsumStressFlags.MathSymbols }),
-        r => r.Value is >= 0x2190 and <= 0x257F));
+        RandomTextGenerator.Generate(new RandomTextOptions { Length = 800, Stress = IpsumStressFlags.MathSymbols }),
+        r => r.Value is >= 0x2190 and <= 0x22FF or >= 0x27C0 and <= 0x2AFF));
+
+Check("图形与符号：出现 ◆ ● ★ ☀ ♪ ✓ ┼ 等", () =>
+    HasRune(
+        RandomTextGenerator.Generate(new RandomTextOptions { Length = 800, Stress = IpsumStressFlags.GraphicSymbols }),
+        r => r.Value is >= 0x2500 and <= 0x27BF));
+
+Check("带圈运算符（⊕ ⦿ ⊗ ⊙）能出现", () =>
+    HasRune(
+        RandomTextGenerator.Generate(new RandomTextOptions
+        {
+            Length = 2000,
+            Stress = IpsumStressFlags.MathSymbols,
+            StressDensity = IpsumDensity.High
+        }),
+        r => r.Value is >= 0x2295 and <= 0x29BF));
 
 Check("拉丁扩展：出现变音符号或组合音标", () =>
     HasRune(
@@ -571,7 +586,8 @@ Check("默认全关：以上字符一个都不出现", () =>
         || r.Value is >= 0x3040 and <= 0x30FF
         || r.Value is >= 0xAC00 and <= 0xD7AF
         || r.Value is >= 0x0590 and <= 0x06FF
-        || r.Value is >= 0x2190 and <= 0x257F
+        || r.Value is >= 0x2190 and <= 0x27BF
+        || r.Value is >= 0x2A00 and <= 0x2AFF
         || r.Value is >= 0xFF10 and <= 0xFF19
         || r.Value is >= 0xFF21 and <= 0xFF3A
         || r.Value is >= 0xFF41 and <= 0xFF5A);

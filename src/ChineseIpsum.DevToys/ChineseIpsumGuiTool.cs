@@ -796,20 +796,21 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
                 .Columns(GUI.Fraction(1), GUI.Fraction(1))
                 .Rows(
                     UIGridLength.Auto, UIGridLength.Auto, UIGridLength.Auto,
-                    UIGridLength.Auto, UIGridLength.Auto)
+                    UIGridLength.Auto, UIGridLength.Auto, UIGridLength.Auto)
                 .ColumnMediumSpacing()
                 .RowMediumSpacing()
                 .Cells(
                     GUI.Cell(0, 0, 1, 1, Row("ci-stress-emoji", "Emoji", "含 ZWJ 组合、肤色修饰、国旗", StressSwitch("ci-sw-emoji", IpsumStressFlags.Emoji))),
                     GUI.Cell(0, 1, 1, 1, Row("ci-stress-cjk", "日文 / 韩文", "假名与谚文，测字体回退", StressSwitch("ci-sw-cjk", IpsumStressFlags.EastAsian))),
                     GUI.Cell(1, 0, 1, 1, Row("ci-stress-rtl", "RTL 文字", "阿拉伯 / 希伯来，测 BiDi 与镜像", StressSwitch("ci-sw-rtl", IpsumStressFlags.Rtl))),
-                    GUI.Cell(1, 1, 1, 1, Row("ci-stress-math", "数学与符号", "∑ ∫ √ ≤ → ↔ ┌┬┐ • † ※", StressSwitch("ci-sw-math", IpsumStressFlags.MathSymbols))),
-                    GUI.Cell(2, 0, 1, 1, Row("ci-stress-latin", "拉丁扩展", "é ü ñ ç ß 与组合音标", StressSwitch("ci-sw-latin", IpsumStressFlags.LatinExtended))),
-                    GUI.Cell(2, 1, 1, 1, Row("ci-stress-forms", "特殊数字与单位", "¹²³ ½ ① Ⅰ ¥ ℃ ㎡ ‰", StressSwitch("ci-sw-forms", IpsumStressFlags.SpecialForms))),
-                    GUI.Cell(3, 0, 1, 1, Row("ci-stress-fullwidth", "全角字符", "ＡＢＣ１２３，测中西文混排", StressSwitch("ci-sw-fullwidth", IpsumStressFlags.FullWidth))),
-                    GUI.Cell(3, 1, 1, 1, Row("ci-stress-invisible", "不可见字符", "NBSP / 零宽空格 / 软连字符", StressSwitch("ci-sw-invisible", IpsumStressFlags.Invisible))),
-                    GUI.Cell(4, 0, 1, 1, Row("ci-stress-longrun", "超长不可断串", "40~200 字母，测 overflow-wrap", StressSwitch("ci-sw-longrun", IpsumStressFlags.LongRun))),
-                    GUI.Cell(4, 1, 1, 1, Row("ci-stress-density", "压力强度", "插入压力字符的概率", DensitySelect("ci-stress-density-select", _stressDensity, d => _stressDensity = d)))));
+                    GUI.Cell(1, 1, 1, 1, Row("ci-stress-math", "数学运算符", "∑ ⊕ ⊗ ⦿ ∈ ⊂ ⟦⟧ ⇒ ⟹", StressSwitch("ci-sw-math", IpsumStressFlags.MathSymbols))),
+                    GUI.Cell(2, 0, 1, 1, Row("ci-stress-symbols", "图形与符号", "■ ◆ ● ★ ☀ ☎ ♠ ♪ ✓ ─┼╬", StressSwitch("ci-sw-symbols", IpsumStressFlags.GraphicSymbols))),
+                    GUI.Cell(2, 1, 1, 1, Row("ci-stress-latin", "拉丁扩展", "é ü ñ ç ß 与组合音标", StressSwitch("ci-sw-latin", IpsumStressFlags.LatinExtended))),
+                    GUI.Cell(3, 0, 1, 1, Row("ci-stress-forms", "特殊数字与单位", "¹²³ ½ ① Ⅰ ¥ ℃ ㎡ ‰", StressSwitch("ci-sw-forms", IpsumStressFlags.SpecialForms))),
+                    GUI.Cell(3, 1, 1, 1, Row("ci-stress-fullwidth", "全角字符", "ＡＢＣ１２３，测中西文混排", StressSwitch("ci-sw-fullwidth", IpsumStressFlags.FullWidth))),
+                    GUI.Cell(4, 0, 1, 1, Row("ci-stress-invisible", "不可见字符", "NBSP / 零宽空格 / 软连字符", StressSwitch("ci-sw-invisible", IpsumStressFlags.Invisible))),
+                    GUI.Cell(4, 1, 1, 1, Row("ci-stress-longrun", "超长不可断串", "40~200 字母，测 overflow-wrap", StressSwitch("ci-sw-longrun", IpsumStressFlags.LongRun))),
+                    GUI.Cell(5, 0, 1, 1, Row("ci-stress-density", "压力强度", "插入压力字符的概率", DensitySelect("ci-stress-density-select", _stressDensity, d => _stressDensity = d)))));
 
         _fragmentCard = GUI.Card(
             "结构化片段（有格式、无意义）",
