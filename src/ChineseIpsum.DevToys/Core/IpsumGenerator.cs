@@ -22,7 +22,8 @@ internal static class IpsumGenerator
         int length,
         bool startWithOpening,
         int minSentencesPerParagraph = 3,
-        int maxSentencesPerParagraph = 6)
+        int maxSentencesPerParagraph = 6,
+        bool blankLineBetweenParagraphs = true)
     {
         IReadOnlyList<string> sentences = IpsumCorpora.GetSentences(corpus);
         if (sentences.Count == 0)
@@ -41,7 +42,14 @@ internal static class IpsumGenerator
         {
             IpsumUnit.Sentences => Join(BuildSentences(sentences, length, opening, random)),
             IpsumUnit.Characters => Join(BuildByCharacters(sentences, length, opening, random)),
-            _ => BuildParagraphs(sentences, length, opening, random, minSentences, maxSentences)
+            _ => BuildParagraphs(
+                sentences,
+                length,
+                opening,
+                random,
+                minSentences,
+                maxSentences,
+                blankLineBetweenParagraphs)
         };
     }
 
@@ -93,7 +101,8 @@ internal static class IpsumGenerator
         string opening,
         Random random,
         int minSentences,
-        int maxSentences)
+        int maxSentences,
+        bool blankLineBetweenParagraphs)
     {
         // 开篇句只用于第一段；每段各自维护「已用句」集合，段内不重复。
         string pendingOpening = opening;
@@ -103,7 +112,11 @@ internal static class IpsumGenerator
         {
             if (i > 0)
             {
-                builder.Append(Environment.NewLine).Append(Environment.NewLine);
+                builder.Append(Environment.NewLine);
+                if (blankLineBetweenParagraphs)
+                {
+                    builder.Append(Environment.NewLine);
+                }
             }
 
             // 闭区间随机：每段句数由调用方给定的范围决定

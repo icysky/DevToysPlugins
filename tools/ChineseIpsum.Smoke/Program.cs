@@ -1,5 +1,10 @@
 using System.Text;
+using System.Text.RegularExpressions;
 using ChineseIpsum.DevToys.Core;
+
+// 生成器用到的两套标点（中文 / 西文），测试里用来判定风格是否串味
+const string ChinesePuncts = "，。！？；：、（）《》「」“”…·～￥℃±【】";
+const string WesternPuncts = ",.!?;:()[]{}\"'@#%&*+=<>/\\|^$~-—";
 
 int passed = 0;
 int failed = 0;
@@ -225,7 +230,8 @@ Check("关闭标点：结果不含任何标点", () =>
         Length = 300,
         Punctuation = false
     });
-    return !text.Any(c => c is '，' or '。' or '；' or '：' or '！' or '？' or '、');
+
+    return !text.Any(c => ChinesePuncts.Contains(c) || WesternPuncts.Contains(c));
 });
 
 Check("开启标点：有句末标点且以标点结尾", () =>
@@ -235,8 +241,77 @@ Check("开启标点：有句末标点且以标点结尾", () =>
         Length = 300,
         Punctuation = true
     });
-    return text.Any(c => c is '。' or '！' or '？')
-           && (text[^1] is '。' or '！' or '？');
+
+    bool hasEnd = text.Any(c => "。！？…".Contains(c));
+    bool endsWithMark = "。！？…·～￥℃±".Contains(text[^1]);
+    return hasEnd && endsWithMark;
+});
+
+Index("随机乱文：标点风格与符号覆盖");
+Check("中文标点：不出现西文标点", () =>
+{
+    string text = RandomTextGenerator.Generate(new RandomTextOptions
+    {
+        Length = 1200,
+        PunctuationStyle = IpsumPunctuationStyle.Chinese
+    });
+
+    return !text.Any(c => WesternPuncts.Contains(c)) && text.Any(c => ChinesePuncts.Contains(c));
+});
+
+Check("西文标点：不出现中文标点", () =>
+{
+    string text = RandomTextGenerator.Generate(new RandomTextOptions
+    {
+        Length = 1200,
+        PunctuationStyle = IpsumPunctuationStyle.Western
+    });
+
+    return !text.Any(c => ChinesePuncts.Contains(c)) && text.Any(c => WesternPuncts.Contains(c));
+});
+
+Check("混合标点：两种都出现", () =>
+{
+    string text = RandomTextGenerator.Generate(new RandomTextOptions
+    {
+        Length = 1500,
+        PunctuationStyle = IpsumPunctuationStyle.Mixed
+    });
+
+    return text.Any(c => ChinesePuncts.Contains(c)) && text.Any(c => WesternPuncts.Contains(c));
+});
+
+Check("符号覆盖：1500 字符内至少出现 10 种不同标点", () =>
+{
+    string text = RandomTextGenerator.Generate(new RandomTextOptions
+    {
+        Length = 1500,
+        PunctuationStyle = IpsumPunctuationStyle.Mixed
+    });
+
+    int distinct = text
+        .Where(c => ChinesePuncts.Contains(c) || WesternPuncts.Contains(c))
+        .Distinct()
+        .Count();
+
+    Console.WriteLine($"        不同标点数={distinct}");
+    return distinct >= 10;
+});
+
+Index("随机乱文：多语言缩写词");
+Check("出现缩写样式（大写字母 + 句点 / 与号 / 编号）", () =>
+{
+    string text = RandomTextGenerator.Generate(new RandomTextOptions
+    {
+        Length = 1200,
+        MixedLanguages = true
+    });
+
+    bool dotted = Regex.IsMatch(text, "[A-Z]\\.[A-Z]?\\.");
+    bool ampersand = text.Contains(" & ", StringComparison.Ordinal);
+    bool coded = Regex.IsMatch(text, "[A-Z]{2}-\\d{2,4}");
+    Console.WriteLine($"        带点={dotted} 与号={ampersand} 编号={coded}");
+    return dotted || ampersand || coded;
 });
 
 Index("随机乱文：段落开关");
@@ -284,10 +359,13 @@ Check("随机乱文：固定 3 句/段 时每段正好 3 句", () =>
     string[] paragraphs = text.Split($"{Environment.NewLine}{Environment.NewLine}", StringSplitOptions.RemoveEmptyEntries);
     Console.WriteLine($"        段数={paragraphs.Length}，首段句数={paragraphs[0].Count(c => c is '。' or '！' or '？')}");
 
+    // 句末符号可能连续出现（？！ / …！），所以按「连续句末符号」为一组来数句子
+    int CountSentences(string paragraph) => Regex.Matches(paragraph, "[。！？…]+").Count;
+
     // 最后一段会因为「达到目标长度就停」而被截短，这里只校验完整段
     return paragraphs.Length >= 2
-           && paragraphs.Take(paragraphs.Length - 1).All(p => p.Count(c => c is '。' or '！' or '？') == 3)
-           && paragraphs[^1].Count(c => c is '。' or '！' or '？') is >= 1 and <= 3;
+           && paragraphs.Take(paragraphs.Length - 1).All(p => CountSentences(p) == 3)
+           && CountSentences(paragraphs[^1]) is >= 1 and <= 3;
 });
 
 Check("随机乱文：1~2 句/段 时每段落在区间内", () =>
@@ -302,30 +380,75 @@ Check("随机乱文：1~2 句/段 时每段落在区间内", () =>
 
     string[] paragraphs = text.Split($"{Environment.NewLine}{Environment.NewLine}", StringSplitOptions.RemoveEmptyEntries);
     return paragraphs.Length >= 2
-           && paragraphs.All(p =>
-           {
-               int count = p.Count(c => c is '。' or '！' or '？');
-               return count is >= 1 and <= 2;
-           });
+           && paragraphs.All(p => Regex.Matches(p, "[。！？…]+").Count is >= 1 and <= 2);
 });
 
 Index("随机乱文：生僻字开关");
-Check("默认无扩展区生僻字", () =>
+Console.WriteLine($"        字表来源：{(ChineseCharacterSets.UsesGb2312 ? "GB2312 一级/二级" : "回退到 Unicode 基本区")}，"
+                  + $"常用 {ChineseCharacterSets.Common.Count} 字，生僻 {ChineseCharacterSets.Rare.Count} 字");
+
+Check("字表加载：常用字 >= 3000 且生僻字 > 0", () =>
+    ChineseCharacterSets.Common.Count >= 3000 && ChineseCharacterSets.Rare.Count > 0);
+
+Check("关闭生僻字：所有汉字都在常用字表内", () =>
 {
     string text = RandomTextGenerator.Generate(new RandomTextOptions { Length = 800 });
-    return !ContainsRareCharacter(text);
+    bool ok = AllHanInCommon(text);
+    Console.WriteLine($"        全部为常用字：{ok}");
+    return ok;
 });
 
-Check("开启后混入扩展区生僻字", () =>
+Check("开启生僻字：出现常用字表以外的字", () =>
 {
     string text = RandomTextGenerator.Generate(new RandomTextOptions
     {
         Length = 800,
         IncludeRareCharacters = true
     });
-    Console.WriteLine($"        含生僻字：{ContainsRareCharacter(text)}");
-    return ContainsRareCharacter(text);
+
+    int outside = CountHanOutsideCommon(text);
+    Console.WriteLine($"        常用字表外的汉字数：{outside}");
+    return outside > 0;
 });
+
+Index("段落间空行开关");
+Check("随机乱文：关闭后无空行但段落仍换行", () =>
+{
+    string text = RandomTextGenerator.Generate(new RandomTextOptions
+    {
+        Length = 600,
+        BlankLineBetweenParagraphs = false
+    });
+
+    return !text.Contains($"{Environment.NewLine}{Environment.NewLine}")
+           && text.Contains(Environment.NewLine);
+});
+
+Check("随机乱文：开启后段落之间有空行", () =>
+    RandomTextGenerator.Generate(new RandomTextOptions
+    {
+        Length = 600,
+        BlankLineBetweenParagraphs = true
+    }).Contains($"{Environment.NewLine}{Environment.NewLine}"));
+
+Check("名著模式：关闭后无空行但段落仍换行", () =>
+{
+    string text = IpsumGenerator.Generate(
+        IpsumCorpus.Mixed,
+        IpsumUnit.Paragraphs,
+        3,
+        startWithOpening: false,
+        minSentencesPerParagraph: 3,
+        maxSentencesPerParagraph: 6,
+        blankLineBetweenParagraphs: false);
+
+    return !text.Contains($"{Environment.NewLine}{Environment.NewLine}")
+           && text.Contains(Environment.NewLine);
+});
+
+Check("名著模式：开启后段落之间有空行", () =>
+    IpsumGenerator.Generate(IpsumCorpus.Mixed, IpsumUnit.Paragraphs, 3, false, 3, 6, true)
+        .Contains($"{Environment.NewLine}{Environment.NewLine}"));
 
 Index("随机乱文：多语言混合");
 Check("开启混合：出现外文单词（ASCII 字母）", () =>
@@ -372,6 +495,257 @@ Check("5000 字符在 2 秒内生成", () =>
     watch.Stop();
     Console.WriteLine($"        {CountVisibleCharacters(text)} 字符，{watch.ElapsedMilliseconds} ms");
     return watch.ElapsedMilliseconds < 2000;
+});
+
+Index("字符压力（P0 / P1）");
+Check("Emoji：出现代理对 / ZWJ 序列", () =>
+{
+    string text = RandomTextGenerator.Generate(new RandomTextOptions
+    {
+        Length = 600,
+        Stress = IpsumStressFlags.Emoji
+    });
+
+    return HasRune(text, r => r.Value > 0xFFFF || r.Value == 0x200D);
+});
+
+Check("日文 / 韩文：出现假名或谚文", () =>
+    HasRune(
+        RandomTextGenerator.Generate(new RandomTextOptions { Length = 600, Stress = IpsumStressFlags.EastAsian }),
+        r => r.Value is >= 0x3040 and <= 0x30FF or >= 0xAC00 and <= 0xD7AF));
+
+Check("RTL：出现阿拉伯文或希伯来文", () =>
+    HasRune(
+        RandomTextGenerator.Generate(new RandomTextOptions { Length = 600, Stress = IpsumStressFlags.Rtl }),
+        r => r.Value is >= 0x0590 and <= 0x06FF));
+
+Check("数学与符号：出现 ∑ / 箭头 / 制表符", () =>
+    HasRune(
+        RandomTextGenerator.Generate(new RandomTextOptions { Length = 600, Stress = IpsumStressFlags.MathSymbols }),
+        r => r.Value is >= 0x2190 and <= 0x257F));
+
+Check("拉丁扩展：出现变音符号或组合音标", () =>
+    HasRune(
+        RandomTextGenerator.Generate(new RandomTextOptions { Length = 600, Stress = IpsumStressFlags.LatinExtended }),
+        r => r.Value is >= 0x00C0 and <= 0x00FF or >= 0x0300 and <= 0x036F));
+
+Check("特殊数字与单位：出现 ½ / ① / ℃ 一类", () =>
+{
+    string text = RandomTextGenerator.Generate(new RandomTextOptions
+    {
+        Length = 800,
+        Stress = IpsumStressFlags.SpecialForms
+    });
+
+    return text.Any(c => "¹²³₀₁₂½⅓¾⅔①②⑦⑩ⅠⅡⅢ¥€£₩₹₿℃℉㎡‰".Contains(c));
+});
+
+Check("全角字符：出现全角字母或数字", () =>
+    HasRune(
+        RandomTextGenerator.Generate(new RandomTextOptions { Length = 600, Stress = IpsumStressFlags.FullWidth }),
+        // 只认全角字母/数字：0xFF01–0xFF5E 里还包含中文全角标点，不能整段判定
+        r => r.Value is >= 0xFF10 and <= 0xFF19 or >= 0xFF21 and <= 0xFF3A or >= 0xFF41 and <= 0xFF5A));
+
+Check("不可见字符：出现 NBSP / 零宽空格", () =>
+{
+    string text = RandomTextGenerator.Generate(new RandomTextOptions
+    {
+        Length = 600,
+        Stress = IpsumStressFlags.Invisible
+    });
+
+    return text.Any(c => c is '\u00A0' or '\u200B' or '\u00AD' or '\u200E' or '\u2060');
+});
+
+Check("超长不可断串：出现 40 个以上连续字母", () =>
+    Regex.IsMatch(
+        RandomTextGenerator.Generate(new RandomTextOptions { Length = 800, Stress = IpsumStressFlags.LongRun }),
+        "[A-Za-z]{40,}"));
+
+Check("默认全关：以上字符一个都不出现", () =>
+{
+    string text = RandomTextGenerator.Generate(new RandomTextOptions { Length = 800 });
+
+    bool hasStress = HasRune(text, r =>
+        r.Value > 0xFFFF
+        || r.Value is >= 0x3040 and <= 0x30FF
+        || r.Value is >= 0xAC00 and <= 0xD7AF
+        || r.Value is >= 0x0590 and <= 0x06FF
+        || r.Value is >= 0x2190 and <= 0x257F
+        || r.Value is >= 0xFF10 and <= 0xFF19
+        || r.Value is >= 0xFF21 and <= 0xFF3A
+        || r.Value is >= 0xFF41 and <= 0xFF5A);
+
+    return !hasStress
+           && !Regex.IsMatch(text, "[A-Za-z]{40,}")
+           && !text.Any(c => c is '\u00A0' or '\u200B' or '\u00AD');
+});
+
+Index("结构化片段（P2）");
+Check("URL", () => Regex.IsMatch(
+    RandomTextGenerator.Generate(new RandomTextOptions
+    {
+        Length = 1200,
+        Fragments = IpsumFragmentFlags.Url,
+        FragmentDensity = IpsumDensity.High
+    }),
+    "https://[a-z]+\\.[a-z.]+/"));
+
+Check("邮箱", () => Regex.IsMatch(
+    RandomTextGenerator.Generate(new RandomTextOptions
+    {
+        Length = 1200,
+        Fragments = IpsumFragmentFlags.Email,
+        FragmentDensity = IpsumDensity.High
+    }),
+    "[a-z]+\\.[a-z]+@[a-z]+\\.[a-z.]+"));
+
+Check("UUID / 哈希", () => Regex.IsMatch(
+    RandomTextGenerator.Generate(new RandomTextOptions
+    {
+        Length = 1200,
+        Fragments = IpsumFragmentFlags.Identifier,
+        FragmentDensity = IpsumDensity.High
+    }),
+    "[0-9a-f]{32,64}"));
+
+Check("版本号", () => Regex.IsMatch(
+    RandomTextGenerator.Generate(new RandomTextOptions
+    {
+        Length = 1200,
+        Fragments = IpsumFragmentFlags.Version,
+        FragmentDensity = IpsumDensity.High
+    }),
+    "v\\d+\\.\\d+\\.\\d+"));
+
+Check("日期时间", () => Regex.IsMatch(
+    RandomTextGenerator.Generate(new RandomTextOptions
+    {
+        Length = 1200,
+        Fragments = IpsumFragmentFlags.DateTime,
+        FragmentDensity = IpsumDensity.High
+    }),
+    "\\d{4}[-/]\\d{2}[-/]\\d{2}"));
+
+Check("金额数值", () =>
+{
+    string text = RandomTextGenerator.Generate(new RandomTextOptions
+    {
+        Length = 1500,
+        Fragments = IpsumFragmentFlags.Amount,
+        FragmentDensity = IpsumDensity.High
+    });
+
+    return text.Contains("kg", StringComparison.Ordinal)
+           || text.Contains("km/h", StringComparison.Ordinal)
+           || text.Contains('%');
+});
+
+Check("文件路径", () => RandomTextGenerator.Generate(new RandomTextOptions
+{
+    Length = 1200,
+    Fragments = IpsumFragmentFlags.FilePath,
+    FragmentDensity = IpsumDensity.High
+}).Contains("/var/www/", StringComparison.Ordinal));
+
+Index("段落形态（P3）");
+Check("首行缩进：每段以两个全角空格开头", () =>
+{
+    string text = RandomTextGenerator.Generate(new RandomTextOptions { Length = 600, IndentFirstLine = true });
+    return text
+        .Split($"{Environment.NewLine}{Environment.NewLine}", StringSplitOptions.RemoveEmptyEntries)
+        .All(p => p.StartsWith("\u3000\u3000", StringComparison.Ordinal));
+});
+
+Check("列表符号：项目符号 / 有序编号", () =>
+{
+    string bullets = RandomTextGenerator.Generate(new RandomTextOptions
+    {
+        Length = 400,
+        ListStyle = IpsumListStyle.Bullets
+    });
+    string ordered = RandomTextGenerator.Generate(new RandomTextOptions
+    {
+        Length = 400,
+        ListStyle = IpsumListStyle.Ordered
+    });
+
+    return bullets.StartsWith("• ", StringComparison.Ordinal)
+           && ordered.StartsWith("1. ", StringComparison.Ordinal);
+});
+
+Check("引用块：段落以 > 开头", () =>
+    RandomTextGenerator.Generate(new RandomTextOptions { Length = 400, QuoteBlocks = true })
+        .StartsWith("> ", StringComparison.Ordinal));
+
+Check("行内代码：出现反引号对", () =>
+    Regex.IsMatch(
+        RandomTextGenerator.Generate(new RandomTextOptions { Length = 1200, InlineCode = true }),
+        "`[^`]+`"));
+
+Check("段落长短：短段多 vs 长段多", () =>
+{
+    int CountParagraphs(string value)
+        => value.Split($"{Environment.NewLine}{Environment.NewLine}", StringSplitOptions.RemoveEmptyEntries).Length;
+
+    string shortText = RandomTextGenerator.Generate(new RandomTextOptions
+    {
+        Length = 1200,
+        ParagraphShape = IpsumParagraphShape.Short
+    });
+    string longText = RandomTextGenerator.Generate(new RandomTextOptions
+    {
+        Length = 1200,
+        ParagraphShape = IpsumParagraphShape.Long
+    });
+
+    Console.WriteLine($"        短段：{CountParagraphs(shortText)} 段，长段：{CountParagraphs(longText)} 段");
+    return CountParagraphs(shortText) > CountParagraphs(longText);
+});
+
+Check("标点密度：高密度逗号更多", () =>
+{
+    int CountCommas(string value) => value.Count(c => c == '，');
+
+    string low = RandomTextGenerator.Generate(new RandomTextOptions
+    {
+        Length = 1200,
+        PunctuationDensity = IpsumDensity.Low
+    });
+    string high = RandomTextGenerator.Generate(new RandomTextOptions
+    {
+        Length = 1200,
+        PunctuationDensity = IpsumDensity.High
+    });
+
+    Console.WriteLine($"        低密度 {CountCommas(low)} 个逗号，高密度 {CountCommas(high)} 个");
+    return CountCommas(high) > CountCommas(low);
+});
+
+Check("空格策略：多空格时出现连续空格", () =>
+    RandomTextGenerator.Generate(new RandomTextOptions
+    {
+        Length = 800,
+        MixedLanguages = true,
+        SpaceStyle = IpsumSpaceStyle.Multiple
+    }).Contains("  ", StringComparison.Ordinal));
+
+Check("压力项全开时长度仍然达标（按 Rune 计数）", () =>
+{
+    string text = RandomTextGenerator.Generate(new RandomTextOptions
+    {
+        Length = 800,
+        Stress = IpsumStressFlags.Emoji | IpsumStressFlags.EastAsian | IpsumStressFlags.Rtl
+                 | IpsumStressFlags.MathSymbols | IpsumStressFlags.LatinExtended
+                 | IpsumStressFlags.SpecialForms | IpsumStressFlags.FullWidth
+                 | IpsumStressFlags.Invisible,
+        MixedLanguages = true,
+        InlineCode = true
+    });
+
+    int chars = CountVisibleCharacters(text);
+    Console.WriteLine($"        目标 800，实际 {chars} 字符");
+    return chars >= 800 && chars <= 1000;
 });
 
 Index("样例输出");
@@ -428,6 +802,19 @@ void Check(string name, Func<bool> condition)
 
 static int CountVisibleCharacters(string text) => text.Count(c => !char.IsWhiteSpace(c));
 
+static bool HasRune(string text, Func<Rune, bool> predicate)
+{
+    foreach (Rune rune in text.EnumerateRunes())
+    {
+        if (predicate(rune))
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 static int CountWords(string text)
 {
     int words = 0;
@@ -462,17 +849,20 @@ static bool IsHan(int codePoint)
        || codePoint is >= 0x3400 and <= 0x4DBF
        || codePoint is >= 0x20000 and <= 0x2A6DF;
 
-static bool ContainsRareCharacter(string text)
+static bool AllHanInCommon(string text) => CountHanOutsideCommon(text) == 0;
+
+static int CountHanOutsideCommon(string text)
 {
+    HashSet<int> common = [.. ChineseCharacterSets.Common.Select(c => (int)c)];
+    int outside = 0;
+
     foreach (Rune rune in text.EnumerateRunes())
     {
-        if (rune.Value is >= 0x3400 and <= 0x4DB5
-            or >= 0x9FA6 and <= 0x9FFF
-            or >= 0x20000 and <= 0x2A6D6)
+        if (IsHan(rune.Value) && !common.Contains(rune.Value))
         {
-            return true;
+            outside++;
         }
     }
 
-    return false;
+    return outside;
 }

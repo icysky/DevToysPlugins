@@ -1,4 +1,5 @@
 using System.ComponentModel.Composition;
+using System.Text.Json;
 using DevToys.Api;
 using ChineseIpsum.DevToys.Core;
 
@@ -58,6 +59,9 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
     private static readonly SettingDefinition<bool> PunctuationSetting =
         new("RandomPunctuation", true);
 
+    private static readonly SettingDefinition<string> PunctuationStyleSetting =
+        new("RandomPunctuationStyle", nameof(IpsumPunctuationStyle.Chinese));
+
     private static readonly SettingDefinition<bool> MixedLanguageSetting =
         new("RandomMixedLanguages", false);
 
@@ -75,6 +79,16 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
 
     private static readonly SettingDefinition<int> RandomMaxSentenceSetting =
         new("RandomParagraphMaxSentences", 4);
+
+    private static readonly SettingDefinition<bool> BlankLineSetting =
+        new("BlankLineBetweenParagraphs", true);
+
+    private static readonly SettingDefinition<bool> RandomBlankLineSetting =
+        new("RandomBlankLineBetweenParagraphs", true);
+
+    // 字符压力 / 结构化片段 / 段落形态：项太多，存成一条 JSON（与 GmCrypto 的做法一致）
+    private static readonly SettingDefinition<string> StressStateSetting =
+        new("RandomStressState", string.Empty);
 
     private readonly ISettingsProvider _settingsProvider;
 
@@ -104,6 +118,8 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
 
     private bool _punctuation;
 
+    private IpsumPunctuationStyle _punctuationStyle;
+
     private bool _mixedLanguages;
 
     private int _minSentences;
@@ -114,10 +130,46 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
 
     private int _randomMaxSentences;
 
+    private bool _blankLineParagraphs;
+
+    private bool _randomBlankLineParagraphs;
+
+    private IpsumStressFlags _stress;
+
+    private IpsumDensity _stressDensity = IpsumDensity.Medium;
+
+    private IpsumFragmentFlags _fragments;
+
+    private IpsumDensity _fragmentDensity = IpsumDensity.Medium;
+
+    private IpsumDensity _punctuationDensity = IpsumDensity.Medium;
+
+    private IpsumParagraphShape _paragraphShape = IpsumParagraphShape.Mixed;
+
+    private bool _indentFirstLine;
+
+    private IpsumListStyle _listStyle = IpsumListStyle.None;
+
+    private bool _quoteBlocks;
+
+    private bool _inlineCode;
+
+    private IpsumSpaceStyle _spaceStyle = IpsumSpaceStyle.Single;
+
     // 按模式显示/隐藏的整行 / 整块（DevToys 要求只改可见性，不能替换控件实例）
     private IUIElement _corpusGrid = default!;
 
+    private IUIElement _corpusBlankRow = default!;
+
+    private IUIElement _randomBlankRow = default!;
+
     private IUIElement _randomGrid = default!;
+
+    private IUIElement _stressCard = default!;
+
+    private IUIElement _fragmentCard = default!;
+
+    private IUIElement _shapeCard = default!;
 
     private IUIElement _corpusSentenceRow = default!;
 
@@ -141,9 +193,18 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
 
     private IUIElement _punctuationRow = default!;
 
+    private IUIElement _punctStyleRow = default!;
+
     private IUIElement _mixedRow = default!;
 
     private bool _loading = true;
+
+    /// <summary>
+    /// 控件在首次渲染时会抛一次 Toggled，且携带的值是初始状态的"反面"
+    /// （实测：初始 true 抛 false，初始 false 抛 true），直接采信会把错误的值写进设置。
+    /// 这里按控件 id 丢弃第一次事件，之后的事件才是用户操作。
+    /// </summary>
+    private readonly HashSet<string> _initialToggleEvents = new(StringComparer.Ordinal);
 
     private UIToolView? _view;
 
@@ -162,6 +223,9 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
         _includeRare = _settingsProvider.GetSetting(RareSetting);
         _paragraphs = _settingsProvider.GetSetting(ParagraphSetting);
         _punctuation = _settingsProvider.GetSetting(PunctuationSetting);
+        _punctuationStyle = ParseEnum(
+            _settingsProvider.GetSetting(PunctuationStyleSetting),
+            IpsumPunctuationStyle.Chinese);
         _mixedLanguages = _settingsProvider.GetSetting(MixedLanguageSetting);
         _minSentences = Math.Clamp(
             _settingsProvider.GetSetting(MinSentenceSetting),
@@ -179,6 +243,9 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
             _settingsProvider.GetSetting(RandomMaxSentenceSetting),
             _randomMinSentences,
             IpsumGenerator.MaxSentencesPerParagraph);
+        _blankLineParagraphs = _settingsProvider.GetSetting(BlankLineSetting);
+        _randomBlankLineParagraphs = _settingsProvider.GetSetting(RandomBlankLineSetting);
+        LoadStressState();
 
         _infoBar = GUI.InfoBar("ci-info").Closable();
 
@@ -202,6 +269,9 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
     public void OnDataReceived(string dataTypeName, object? parsedData)
     {
     }
+
+    /// <summary>首次事件（渲染初始化）返回 true，调用方应直接返回。</summary>
+    private bool IsInitialToggle(string controlId) => _initialToggleEvents.Add(controlId);
 
     private UIToolView BuildView()
     {
@@ -340,7 +410,7 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
         IUISwitch openingSwitch = _startWithOpening ? GUI.Switch("ci-opening").On() : GUI.Switch("ci-opening").Off();
         openingSwitch.OnToggle(on =>
         {
-            if (_loading)
+            if (_loading || IsInitialToggle("ci-opening"))
             {
                 return;
             }
@@ -353,7 +423,7 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
         IUISwitch rareSwitch = _includeRare ? GUI.Switch("ci-rare").On() : GUI.Switch("ci-rare").Off();
         rareSwitch.OnToggle(on =>
         {
-            if (_loading)
+            if (_loading || IsInitialToggle("ci-rare"))
             {
                 return;
             }
@@ -366,7 +436,7 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
         IUISwitch paragraphSwitch = _paragraphs ? GUI.Switch("ci-paragraphs").On() : GUI.Switch("ci-paragraphs").Off();
         paragraphSwitch.OnToggle(on =>
         {
-            if (_loading)
+            if (_loading || IsInitialToggle("ci-paragraphs"))
             {
                 return;
             }
@@ -379,7 +449,7 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
         IUISwitch punctuationSwitch = _punctuation ? GUI.Switch("ci-punctuation").On() : GUI.Switch("ci-punctuation").Off();
         punctuationSwitch.OnToggle(on =>
         {
-            if (_loading)
+            if (_loading || IsInitialToggle("ci-punctuation"))
             {
                 return;
             }
@@ -389,15 +459,63 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
             Generate();
         });
 
+        IUIDropDownListItem[] punctStyleItems =
+        [
+            GUI.Item("中文标点（，。！？）", IpsumPunctuationStyle.Chinese),
+            GUI.Item("西文标点（, . ! ?）", IpsumPunctuationStyle.Western),
+            GUI.Item("混合（两种都用）", IpsumPunctuationStyle.Mixed)
+        ];
+
+        IUISelectDropDownList punctStyleSelect = GUI.SelectDropDownList("ci-punct-style")
+            .WithItems(punctStyleItems)
+            .Select(punctStyleItems[Math.Clamp((int)_punctuationStyle, 0, punctStyleItems.Length - 1)])
+            .OnItemSelected(item =>
+            {
+                if (_loading || item?.Value is not IpsumPunctuationStyle style)
+                {
+                    return;
+                }
+
+                _punctuationStyle = style;
+                SaveSettings();
+                Generate();
+            });
+
         IUISwitch mixedSwitch = _mixedLanguages ? GUI.Switch("ci-mixed").On() : GUI.Switch("ci-mixed").Off();
         mixedSwitch.OnToggle(on =>
         {
-            if (_loading)
+            if (_loading || IsInitialToggle("ci-mixed"))
             {
                 return;
             }
 
             _mixedLanguages = on;
+            SaveSettings();
+            Generate();
+        });
+
+        IUISwitch blankLineSwitch = _blankLineParagraphs ? GUI.Switch("ci-blank-line").On() : GUI.Switch("ci-blank-line").Off();
+        blankLineSwitch.OnToggle(on =>
+        {
+            if (_loading || IsInitialToggle("ci-blank-line"))
+            {
+                return;
+            }
+
+            _blankLineParagraphs = on;
+            SaveSettings();
+            Generate();
+        });
+
+        IUISwitch randomBlankLineSwitch = _randomBlankLineParagraphs ? GUI.Switch("ci-random-blank-line").On() : GUI.Switch("ci-random-blank-line").Off();
+        randomBlankLineSwitch.OnToggle(on =>
+        {
+            if (_loading || IsInitialToggle("ci-random-blank-line"))
+            {
+                return;
+            }
+
+            _randomBlankLineParagraphs = on;
             SaveSettings();
             Generate();
         });
@@ -509,6 +627,11 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
             .Description("每段随机取 N~M 句（含端点），仅「段落」类型生效")
             .InteractiveElement(RangeInput(corpusMinInput, corpusMaxInput));
 
+        _corpusBlankRow = GUI.Setting("ci-setting-blank")
+            .Title("段落间空行")
+            .Description("段落之间空一行；关闭则只用单个换行分隔")
+            .InteractiveElement(blankLineSwitch);
+
         _countModeRow = GUI.Setting("ci-setting-count-mode")
             .Title("长度按")
             .Description("字符数含标点与外文；字词数按汉字/外文单词计")
@@ -534,10 +657,20 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
             .Description("每段随机取 N~M 句（含端点），开启「模拟文章段落」时生效")
             .InteractiveElement(RangeInput(randomMinInput, randomMaxInput));
 
+        _randomBlankRow = GUI.Setting("ci-setting-random-blank")
+            .Title("段落间空行")
+            .Description("段落之间空一行；关闭则只用单个换行分隔")
+            .InteractiveElement(randomBlankLineSwitch);
+
         _punctuationRow = GUI.Setting("ci-setting-punctuation")
             .Title("包含标点符号")
             .Description("句末用句号 / 感叹号 / 问号，句中随机插入逗号")
             .InteractiveElement(punctuationSwitch);
+
+        _punctStyleRow = GUI.Setting("ci-setting-punct-style")
+            .Title("标点风格")
+            .Description("中文标点 / 西文标点 / 两者混用，仅开启标点时生效")
+            .InteractiveElement(punctStyleSelect);
 
         _mixedRow = GUI.Setting("ci-setting-mixed")
             .Title("多语言混合")
@@ -555,7 +688,8 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
                 GUI.Cell(0, 1, 1, 1, _unitRow),
                 GUI.Cell(0, 2, 1, 1, _lengthRow),
                 GUI.Cell(1, 0, 1, 1, _corpusSentenceRow),
-                GUI.Cell(1, 1, 1, 1, _openingRow));
+                GUI.Cell(1, 1, 1, 1, _corpusBlankRow),
+                GUI.Cell(1, 2, 1, 1, _openingRow));
 
         _randomGrid = GUI.Grid()
             .Columns(GUI.Fraction(1), GUI.Fraction(1), GUI.Fraction(1))
@@ -568,8 +702,181 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
                 GUI.Cell(0, 2, 1, 1, _rareRow),
                 GUI.Cell(1, 0, 1, 1, _paragraphRow),
                 GUI.Cell(1, 1, 1, 1, _randomSentenceRow),
-                GUI.Cell(1, 2, 1, 1, _punctuationRow),
-                GUI.Cell(2, 0, 1, 1, _mixedRow));
+                GUI.Cell(1, 2, 1, 1, _randomBlankRow),
+                GUI.Cell(2, 0, 1, 1, _punctuationRow),
+                GUI.Cell(2, 1, 1, 1, _punctStyleRow),
+                GUI.Cell(2, 2, 1, 1, _mixedRow));
+
+        // ---- 字符压力 / 结构化片段 / 段落形态（仅随机模式可见，默认全关） ----
+        IUISwitch StressSwitch(string id, IpsumStressFlags flag)
+        {
+            IUISwitch toggle = (_stress & flag) != 0 ? GUI.Switch(id).On() : GUI.Switch(id).Off();
+            toggle.OnToggle(on =>
+            {
+                if (_loading || IsInitialToggle(id))
+                {
+                    return;
+                }
+
+                if (on)
+                {
+                    _stress |= flag;
+                }
+                else
+                {
+                    _stress &= ~flag;
+                }
+
+                SaveSettings();
+                Generate();
+            });
+
+            return toggle;
+        }
+
+        IUISwitch FlagSwitch(string id, bool initial, Action<bool> apply)
+        {
+            IUISwitch toggle = initial ? GUI.Switch(id).On() : GUI.Switch(id).Off();
+            toggle.OnToggle(on =>
+            {
+                if (_loading || IsInitialToggle(id))
+                {
+                    return;
+                }
+
+                apply(on);
+                SaveSettings();
+                Generate();
+            });
+
+            return toggle;
+        }
+
+        void SetFragment(IpsumFragmentFlags flag, bool on)
+        {
+            if (on)
+            {
+                _fragments |= flag;
+            }
+            else
+            {
+                _fragments &= ~flag;
+            }
+        }
+
+        IUISelectDropDownList DensitySelect(string id, IpsumDensity current, Action<IpsumDensity> apply)
+        {
+            IUIDropDownListItem[] items =
+            [
+                GUI.Item("低", IpsumDensity.Low),
+                GUI.Item("中", IpsumDensity.Medium),
+                GUI.Item("高", IpsumDensity.High)
+            ];
+
+            return GUI.SelectDropDownList(id)
+                .WithItems(items)
+                .Select(items[Math.Clamp((int)current, 0, items.Length - 1)])
+                .OnItemSelected(item =>
+                {
+                    if (_loading || item?.Value is not IpsumDensity density)
+                    {
+                        return;
+                    }
+
+                    apply(density);
+                    SaveSettings();
+                    Generate();
+                });
+        }
+
+        IUISelectDropDownList EnumSelect<TEnum>(string id, TEnum current, (string Label, TEnum Value)[] options, Action<TEnum> apply)
+            where TEnum : struct, Enum
+        {
+            IUIDropDownListItem[] items = [.. options.Select(o => GUI.Item(o.Label, o.Value))];
+            int index = Array.FindIndex(options, o => EqualityComparer<TEnum>.Default.Equals(o.Value, current));
+
+            return GUI.SelectDropDownList(id)
+                .WithItems(items)
+                .Select(items[index < 0 ? 0 : index])
+                .OnItemSelected(item =>
+                {
+                    if (_loading || item?.Value is not TEnum value)
+                    {
+                        return;
+                    }
+
+                    apply(value);
+                    SaveSettings();
+                    Generate();
+                });
+        }
+
+        IUIElement Row(string id, string title, string description, IUIElement control)
+            => GUI.Setting(id).Title(title).Description(description).InteractiveElement(control);
+
+        _stressCard = GUI.Card(
+            "字符压力（勾选后才混入，默认全关）",
+            GUI.Grid()
+                .Columns(GUI.Fraction(1), GUI.Fraction(1), GUI.Fraction(1), GUI.Fraction(1))
+                .Rows(UIGridLength.Auto, UIGridLength.Auto, UIGridLength.Auto)
+                .ColumnMediumSpacing()
+                .RowMediumSpacing()
+                .Cells(
+                    GUI.Cell(0, 0, 1, 1, Row("ci-stress-emoji", "Emoji", "含 ZWJ 组合、肤色修饰、国旗", StressSwitch("ci-sw-emoji", IpsumStressFlags.Emoji))),
+                    GUI.Cell(0, 1, 1, 1, Row("ci-stress-cjk", "日文 / 韩文", "假名与谚文，测中日韩字体回退", StressSwitch("ci-sw-cjk", IpsumStressFlags.EastAsian))),
+                    GUI.Cell(0, 2, 1, 1, Row("ci-stress-rtl", "RTL 文字", "阿拉伯文 / 希伯来文，测 BiDi 与括号镜像", StressSwitch("ci-sw-rtl", IpsumStressFlags.Rtl))),
+                    GUI.Cell(0, 3, 1, 1, Row("ci-stress-math", "数学与符号", "∑ ∫ √ ≤ → ↔ ┌┬┐ • † ※", StressSwitch("ci-sw-math", IpsumStressFlags.MathSymbols))),
+                    GUI.Cell(1, 0, 1, 1, Row("ci-stress-latin", "拉丁扩展", "é ü ñ ç ß 与组合音标", StressSwitch("ci-sw-latin", IpsumStressFlags.LatinExtended))),
+                    GUI.Cell(1, 1, 1, 1, Row("ci-stress-forms", "特殊数字与单位", "¹²³ ½ ① Ⅰ ¥ ℃ ㎡ ‰", StressSwitch("ci-sw-forms", IpsumStressFlags.SpecialForms))),
+                    GUI.Cell(1, 2, 1, 1, Row("ci-stress-fullwidth", "全角字符", "ＡＢＣ１２３，测中西文混排间距", StressSwitch("ci-sw-fullwidth", IpsumStressFlags.FullWidth))),
+                    GUI.Cell(1, 3, 1, 1, Row("ci-stress-invisible", "不可见字符", "NBSP / 零宽空格 / 软连字符 / LRM", StressSwitch("ci-sw-invisible", IpsumStressFlags.Invisible))),
+                    GUI.Cell(2, 0, 1, 1, Row("ci-stress-longrun", "超长不可断串", "40~200 个连续字母，测 overflow-wrap", StressSwitch("ci-sw-longrun", IpsumStressFlags.LongRun))),
+                    GUI.Cell(2, 1, 1, 1, Row("ci-stress-density", "压力强度", "每个字插入压力字符的概率", DensitySelect("ci-stress-density-select", _stressDensity, d => _stressDensity = d)))));
+
+        _fragmentCard = GUI.Card(
+            "结构化片段（有格式、无意义）",
+            GUI.Grid()
+                .Columns(GUI.Fraction(1), GUI.Fraction(1), GUI.Fraction(1), GUI.Fraction(1))
+                .Rows(UIGridLength.Auto, UIGridLength.Auto)
+                .ColumnMediumSpacing()
+                .RowMediumSpacing()
+                .Cells(
+                    GUI.Cell(0, 0, 1, 1, Row("ci-frag-url", "URL", "https://…?id=…", FlagSwitch("ci-sw-url", (_fragments & IpsumFragmentFlags.Url) != 0, on => SetFragment(IpsumFragmentFlags.Url, on)))),
+                    GUI.Cell(0, 1, 1, 1, Row("ci-frag-email", "邮箱", "name.tag@sub.example.co.uk", FlagSwitch("ci-sw-email", (_fragments & IpsumFragmentFlags.Email) != 0, on => SetFragment(IpsumFragmentFlags.Email, on)))),
+                    GUI.Cell(0, 2, 1, 1, Row("ci-frag-id", "UUID / 哈希", "32 / 40 / 64 位 hex", FlagSwitch("ci-sw-id", (_fragments & IpsumFragmentFlags.Identifier) != 0, on => SetFragment(IpsumFragmentFlags.Identifier, on)))),
+                    GUI.Cell(0, 3, 1, 1, Row("ci-frag-version", "版本号", "v1.2.3-beta.4+build.567", FlagSwitch("ci-sw-version", (_fragments & IpsumFragmentFlags.Version) != 0, on => SetFragment(IpsumFragmentFlags.Version, on)))),
+                    GUI.Cell(1, 0, 1, 1, Row("ci-frag-datetime", "日期时间", "2026-11-10 12:34:56 等格式", FlagSwitch("ci-sw-datetime", (_fragments & IpsumFragmentFlags.DateTime) != 0, on => SetFragment(IpsumFragmentFlags.DateTime, on)))),
+                    GUI.Cell(1, 1, 1, 1, Row("ci-frag-amount", "金额数值", "1,234,567.89 / 99.99% / 12,345 kg", FlagSwitch("ci-sw-amount", (_fragments & IpsumFragmentFlags.Amount) != 0, on => SetFragment(IpsumFragmentFlags.Amount, on)))),
+                    GUI.Cell(1, 2, 1, 1, Row("ci-frag-path", "文件路径", "/var/www/a/b/file.tar.gz", FlagSwitch("ci-sw-path", (_fragments & IpsumFragmentFlags.FilePath) != 0, on => SetFragment(IpsumFragmentFlags.FilePath, on)))),
+                    GUI.Cell(1, 3, 1, 1, Row("ci-frag-density", "出现频率", "每个片段出现的概率", DensitySelect("ci-frag-density-select", _fragmentDensity, d => _fragmentDensity = d)))));
+
+        _shapeCard = GUI.Card(
+            "段落形态",
+            GUI.Grid()
+                .Columns(GUI.Fraction(1), GUI.Fraction(1), GUI.Fraction(1), GUI.Fraction(1))
+                .Rows(UIGridLength.Auto, UIGridLength.Auto)
+                .ColumnMediumSpacing()
+                .RowMediumSpacing()
+                .Cells(
+                    GUI.Cell(0, 0, 1, 1, Row("ci-shape-length", "段落长短", "以「每段句子数」范围为基准", EnumSelect(
+                        "ci-shape-length-select",
+                        _paragraphShape,
+                        [("短段多", IpsumParagraphShape.Short), ("混合", IpsumParagraphShape.Mixed), ("长段多", IpsumParagraphShape.Long)],
+                        v => _paragraphShape = v))),
+                    GUI.Cell(0, 1, 1, 1, Row("ci-shape-punct", "标点密度", "句中逗号的密集程度", DensitySelect("ci-shape-punct-select", _punctuationDensity, d => _punctuationDensity = d))),
+                    GUI.Cell(0, 2, 1, 1, Row("ci-shape-space", "空格策略", "外文词前的空格：无 / 单 / 多", EnumSelect(
+                        "ci-shape-space-select",
+                        _spaceStyle,
+                        [("无空格", IpsumSpaceStyle.None), ("单空格", IpsumSpaceStyle.Single), ("多空格", IpsumSpaceStyle.Multiple)],
+                        v => _spaceStyle = v))),
+                    GUI.Cell(0, 3, 1, 1, Row("ci-shape-indent", "首行缩进", "段首加两个全角空格", FlagSwitch("ci-sw-indent", _indentFirstLine, on => _indentFirstLine = on))),
+                    GUI.Cell(1, 0, 1, 1, Row("ci-shape-list", "列表符号", "段首加项目符号或序号", EnumSelect(
+                        "ci-shape-list-select",
+                        _listStyle,
+                        [("不加", IpsumListStyle.None), ("项目符号 •", IpsumListStyle.Bullets), ("有序编号 1.", IpsumListStyle.Ordered)],
+                        v => _listStyle = v))),
+                    GUI.Cell(1, 1, 1, 1, Row("ci-shape-quote", "引用块", "段首加 > 前缀", FlagSwitch("ci-sw-quote", _quoteBlocks, on => _quoteBlocks = on))),
+                    GUI.Cell(1, 2, 1, 1, Row("ci-shape-code", "行内代码", "偶尔把词包成 `code`，测等宽字体", FlagSwitch("ci-sw-code", _inlineCode, on => _inlineCode = on)))));
 
         IUIElement settings = GUI.Stack().Vertical().MediumSpacing().WithChildren(
             GUI.Label().Text("配置").Style(UILabelStyle.BodyStrong),
@@ -578,7 +885,10 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
                 .Description("名著节选有语义；随机乱文按规则生成无意义文本，适合测试排版与字号")
                 .InteractiveElement(modeSelect),
             _corpusGrid,
-            _randomGrid);
+            _randomGrid,
+            _stressCard,
+            _fragmentCard,
+            _shapeCard);
 
         IUIElement resultArea = GUI.CommandBarExtraContent<IUIMultiLineTextInput>(_output, _refreshButton);
 
@@ -610,8 +920,21 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
                     Paragraphs = _paragraphs,
                     MinSentencesPerParagraph = _randomMinSentences,
                     MaxSentencesPerParagraph = _randomMaxSentences,
+                    BlankLineBetweenParagraphs = _randomBlankLineParagraphs,
                     Punctuation = _punctuation,
-                    MixedLanguages = _mixedLanguages
+                    PunctuationStyle = _punctuationStyle,
+                    MixedLanguages = _mixedLanguages,
+                    Stress = _stress,
+                    StressDensity = _stressDensity,
+                    Fragments = _fragments,
+                    FragmentDensity = _fragmentDensity,
+                    PunctuationDensity = _punctuationDensity,
+                    ParagraphShape = _paragraphShape,
+                    IndentFirstLine = _indentFirstLine,
+                    ListStyle = _listStyle,
+                    QuoteBlocks = _quoteBlocks,
+                    InlineCode = _inlineCode,
+                    SpaceStyle = _spaceStyle
                 })
                 : IpsumGenerator.Generate(
                     _corpus,
@@ -619,7 +942,8 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
                     _length,
                     _startWithOpening,
                     _minSentences,
-                    _maxSentences);
+                    _maxSentences,
+                    _blankLineParagraphs);
 
             GUI.Text(_output, text);
             GUI.Close(_infoBar);
@@ -648,9 +972,17 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
         Show(_corpusGrid, corpus);
         Show(_randomGrid, !corpus);
 
-        // 「每段句子数」只在真正按段输出时才有意义
-        Show(_corpusSentenceRow, corpus && _unit == IpsumUnit.Paragraphs);
+        // 「每段句子数 / 段落间空行」只在真正按段输出时才有意义
+        bool corpusParagraphs = corpus && _unit == IpsumUnit.Paragraphs;
+        Show(_corpusSentenceRow, corpusParagraphs);
+        Show(_corpusBlankRow, corpusParagraphs);
         Show(_randomSentenceRow, _paragraphs);
+        Show(_randomBlankRow, _paragraphs);
+        Show(_punctStyleRow, _punctuation);
+
+        Show(_stressCard, !corpus);
+        Show(_fragmentCard, !corpus);
+        Show(_shapeCard, !corpus);
     }
 
     private static void Show(IUIElement element, bool visible)
@@ -687,16 +1019,95 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
             _settingsProvider.SetSetting(RareSetting, _includeRare);
             _settingsProvider.SetSetting(ParagraphSetting, _paragraphs);
             _settingsProvider.SetSetting(PunctuationSetting, _punctuation);
+            _settingsProvider.SetSetting(PunctuationStyleSetting, _punctuationStyle.ToString());
             _settingsProvider.SetSetting(MixedLanguageSetting, _mixedLanguages);
             _settingsProvider.SetSetting(MinSentenceSetting, _minSentences);
             _settingsProvider.SetSetting(MaxSentenceSetting, _maxSentences);
             _settingsProvider.SetSetting(RandomMinSentenceSetting, _randomMinSentences);
             _settingsProvider.SetSetting(RandomMaxSentenceSetting, _randomMaxSentences);
+            _settingsProvider.SetSetting(BlankLineSetting, _blankLineParagraphs);
+            _settingsProvider.SetSetting(RandomBlankLineSetting, _randomBlankLineParagraphs);
+            SaveStressState();
         }
         catch
         {
             // 设置写入失败不影响生成。
         }
+    }
+
+    /// <summary>字符压力 / 结构化片段 / 段落形态：项太多，整组存成一条 JSON。</summary>
+    private void LoadStressState()
+    {
+        try
+        {
+            string json = _settingsProvider.GetSetting(StressStateSetting);
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return;
+            }
+
+            PersistedStress? state = JsonSerializer.Deserialize<PersistedStress>(json);
+            if (state is null)
+            {
+                return;
+            }
+
+            _stress = ParseEnum(state.Stress, IpsumStressFlags.None);
+            _stressDensity = ParseEnum(state.StressDensity, IpsumDensity.Medium);
+            _fragments = ParseEnum(state.Fragments, IpsumFragmentFlags.None);
+            _fragmentDensity = ParseEnum(state.FragmentDensity, IpsumDensity.Medium);
+            _punctuationDensity = ParseEnum(state.PunctuationDensity, IpsumDensity.Medium);
+            _paragraphShape = ParseEnum(state.ParagraphShape, IpsumParagraphShape.Mixed);
+            if (state.IndentFirstLine is not null) _indentFirstLine = state.IndentFirstLine.Value;
+            _listStyle = ParseEnum(state.ListStyle, IpsumListStyle.None);
+            if (state.QuoteBlocks is not null) _quoteBlocks = state.QuoteBlocks.Value;
+            if (state.InlineCode is not null) _inlineCode = state.InlineCode.Value;
+            _spaceStyle = ParseEnum(state.SpaceStyle, IpsumSpaceStyle.Single);
+        }
+        catch
+        {
+            // 设置损坏时用默认值
+        }
+    }
+
+    private void SaveStressState()
+    {
+        try
+        {
+            _settingsProvider.SetSetting(StressStateSetting, JsonSerializer.Serialize(new PersistedStress
+            {
+                Stress = _stress.ToString(),
+                StressDensity = _stressDensity.ToString(),
+                Fragments = _fragments.ToString(),
+                FragmentDensity = _fragmentDensity.ToString(),
+                PunctuationDensity = _punctuationDensity.ToString(),
+                ParagraphShape = _paragraphShape.ToString(),
+                IndentFirstLine = _indentFirstLine,
+                ListStyle = _listStyle.ToString(),
+                QuoteBlocks = _quoteBlocks,
+                InlineCode = _inlineCode,
+                SpaceStyle = _spaceStyle.ToString()
+            }));
+        }
+        catch
+        {
+            // 持久化失败不影响生成
+        }
+    }
+
+    private sealed class PersistedStress
+    {
+        public string? Stress { get; set; }
+        public string? StressDensity { get; set; }
+        public string? Fragments { get; set; }
+        public string? FragmentDensity { get; set; }
+        public string? PunctuationDensity { get; set; }
+        public string? ParagraphShape { get; set; }
+        public bool? IndentFirstLine { get; set; }
+        public string? ListStyle { get; set; }
+        public bool? QuoteBlocks { get; set; }
+        public bool? InlineCode { get; set; }
+        public string? SpaceStyle { get; set; }
     }
 
     private static TEnum ParseEnum<TEnum>(string? value, TEnum fallback) where TEnum : struct, Enum
