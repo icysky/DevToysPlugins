@@ -156,6 +156,9 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
 
     private IpsumSpaceStyle _spaceStyle = IpsumSpaceStyle.Single;
 
+    /// <summary>高级选项（字符压力 / 结构化片段 / 段落形态）是否展开。默认收起，把高度让给结果框。</summary>
+    private bool _showAdvanced;
+
     // 按模式显示/隐藏的整行 / 整块（DevToys 要求只改可见性，不能替换控件实例）
     private IUIElement _corpusGrid = default!;
 
@@ -170,6 +173,10 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
     private IUIElement _fragmentCard = default!;
 
     private IUIElement _shapeCard = default!;
+
+    private IUIElement _advancedRow = default!;
+
+    private IUILabel _advancedHint = default!;
 
     private IUIElement _corpusSentenceRow = default!;
 
@@ -347,6 +354,29 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
                 UpdateVisibility();
                 Generate();
             });
+
+        // 高级选项折叠：默认收起，把纵向空间让给结果框
+        IUISwitch advancedSwitch = _showAdvanced ? GUI.Switch("ci-advanced").On() : GUI.Switch("ci-advanced").Off();
+        advancedSwitch.OnToggle(on =>
+        {
+            if (_loading || IsInitialToggle("ci-advanced"))
+            {
+                return;
+            }
+
+            _showAdvanced = on;
+            SaveSettings();
+            UpdateVisibility();
+        });
+
+        _advancedRow = GUI.Setting("ci-setting-advanced")
+            .Title("高级选项")
+            .Description("字符压力 / 结构化片段 / 段落形态；收起时结果框更高")
+            .InteractiveElement(advancedSwitch);
+
+        _advancedHint = GUI.Label("ci-advanced-hint")
+            .Style(UILabelStyle.Caption)
+            .WrapIfNeeded();
 
         IUINumberInput lengthInput = GUI.NumberInput(
                 "ci-length",
@@ -884,6 +914,8 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
                 .Title("来源类型")
                 .Description("名著节选有语义；随机乱文按规则生成无意义文本，适合测试排版与字号")
                 .InteractiveElement(modeSelect),
+            _advancedRow,
+            _advancedHint,
             _corpusGrid,
             _randomGrid,
             _stressCard,
@@ -980,9 +1012,48 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
         Show(_randomBlankRow, _paragraphs);
         Show(_punctStyleRow, _punctuation);
 
-        Show(_stressCard, !corpus);
-        Show(_fragmentCard, !corpus);
-        Show(_shapeCard, !corpus);
+        Show(_advancedRow, !corpus);
+        Show(_stressCard, !corpus && _showAdvanced);
+        Show(_fragmentCard, !corpus && _showAdvanced);
+        Show(_shapeCard, !corpus && _showAdvanced);
+
+        // 收起时用一行说明"哪些高级项正在生效"，避免藏起来就看不见
+        string summary = BuildAdvancedSummary();
+        GUI.Text(_advancedHint, summary);
+        Show(_advancedHint, !corpus && !_showAdvanced && summary.Length > 0);
+    }
+
+    /// <summary>高级选项收起时，用一句话说明哪些分组正在生效。</summary>
+    private string BuildAdvancedSummary()
+    {
+        List<string> parts = [];
+
+        if (_stress != IpsumStressFlags.None)
+        {
+            parts.Add($"字符压力（{_stress}）");
+        }
+
+        if (_fragments != IpsumFragmentFlags.None)
+        {
+            parts.Add($"结构化片段（{_fragments}）");
+        }
+
+        bool shapeCustomized = _indentFirstLine
+                               || _listStyle != IpsumListStyle.None
+                               || _quoteBlocks
+                               || _inlineCode
+                               || _paragraphShape != IpsumParagraphShape.Mixed
+                               || _punctuationDensity != IpsumDensity.Medium
+                               || _spaceStyle != IpsumSpaceStyle.Single;
+
+        if (shapeCustomized)
+        {
+            parts.Add("段落形态已自定义");
+        }
+
+        return parts.Count == 0
+            ? string.Empty
+            : "高级选项正在生效：" + string.Join("；", parts) + " —— 点上面的开关可展开调整。";
     }
 
     private static void Show(IUIElement element, bool visible)
@@ -1063,6 +1134,7 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
             if (state.QuoteBlocks is not null) _quoteBlocks = state.QuoteBlocks.Value;
             if (state.InlineCode is not null) _inlineCode = state.InlineCode.Value;
             _spaceStyle = ParseEnum(state.SpaceStyle, IpsumSpaceStyle.Single);
+            if (state.ShowAdvanced is not null) _showAdvanced = state.ShowAdvanced.Value;
         }
         catch
         {
@@ -1086,7 +1158,8 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
                 ListStyle = _listStyle.ToString(),
                 QuoteBlocks = _quoteBlocks,
                 InlineCode = _inlineCode,
-                SpaceStyle = _spaceStyle.ToString()
+                SpaceStyle = _spaceStyle.ToString(),
+                ShowAdvanced = _showAdvanced
             }));
         }
         catch
@@ -1108,6 +1181,7 @@ internal sealed class ChineseIpsumGuiTool : IGuiTool
         public bool? QuoteBlocks { get; set; }
         public bool? InlineCode { get; set; }
         public string? SpaceStyle { get; set; }
+        public bool? ShowAdvanced { get; set; }
     }
 
     private static TEnum ParseEnum<TEnum>(string? value, TEnum fallback) where TEnum : struct, Enum
