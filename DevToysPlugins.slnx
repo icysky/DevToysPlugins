@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/ChineseIpsum.DevToys/ChineseIpsum.DevToys.csproj" />
+    <Project Path="src/Cron.DevToys/Cron.DevToys.csproj" />
     <Project Path="src/GmCrypto.DevToys/GmCrypto.DevToys.csproj" />
     <Project Path="src/GoogleAuthenticator.DevToys/GoogleAuthenticator.DevToys.csproj" />
     <Project Path="src/JsFormat.DevToys/JsFormat.DevToys.csproj" />
@@ -8,6 +9,7 @@
   </Folder>
   <Folder Name="/tools/">
     <Project Path="tools/ChineseIpsum.Smoke/ChineseIpsum.Smoke.csproj" />
+    <Project Path="tools/Cron.Smoke/Cron.Smoke.csproj" />
     <Project Path="tools/GmCrypto.Smoke/GmCrypto.Smoke.csproj" />
     <Project Path="tools/GoogleAuthenticator.Smoke/GoogleAuthenticator.Smoke.csproj" />
     <Project Path="tools/JsFormat.Smoke/JsFormat.Smoke.csproj" />

@@ -52,14 +52,15 @@ $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $solutionPath = Join-Path $root 'DevToysPlugins.slnx'
 $devToysExe = Join-Path $env:LOCALAPPDATA 'Programs\DevToys Preview\DevToys.exe'
 $pluginsRoot = Join-Path $env:LOCALAPPDATA 'DevToys-preview\Plugins'
-$smokeSuites = @('GmCrypto.Smoke', 'ChineseIpsum.Smoke', 'GoogleAuthenticator.Smoke', 'MyCert.Smoke', 'JsFormat.Smoke')
+$smokeSuites = @('GmCrypto.Smoke', 'ChineseIpsum.Smoke', 'GoogleAuthenticator.Smoke', 'MyCert.Smoke', 'JsFormat.Smoke', 'Cron.Smoke')
 # PackageId == project directory name == installed folder name
 $plugins = @(
     'GmCrypto.DevToys',
     'MyCert.DevToys',
     'GoogleAuthenticator.DevToys',
     'ChineseIpsum.DevToys',
-    'JsFormat.DevToys'
+    'JsFormat.DevToys',
+    'Cron.DevToys'
 )
 
 function Write-Step {
@@ -160,8 +161,10 @@ $startedAt = Get-Date
 Write-Step 'Checking .NET SDK'
 $sdk = (& dotnet --version).Trim()
 Write-Host "  dotnet: $sdk"
-if (-not $sdk.StartsWith('10.')) {
-    throw "Requires the .NET 10 SDK (see global.json). Current SDK: $sdk"
+$sdkMajor = 0
+if ($sdk -match '^(\d+)\.') { $sdkMajor = [int]$Matches[1] }
+if ($sdkMajor -lt 10) {
+    throw "Requires the .NET 10 SDK or newer (see global.json). Current SDK: $sdk"
 }
 
 # ---------------------------------------------------------------- 2. stop DevToys

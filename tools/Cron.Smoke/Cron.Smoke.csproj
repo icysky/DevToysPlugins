@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Cron 解析 / 生成逻辑回归冒烟：只链接 Core 源码（不依赖 DevToys.Api，可独立运行）。
+    运行：powershell -ExecutionPolicy Bypass -File tools\Cron.Smoke\run.ps1
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- 与 DevToys 宿主的 .NET 8 运行时保持一致，顺带当 API 可用性门禁 -->
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>Cron.DevToys</RootNamespace>
+    <AssemblyName>Cron.Smoke</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\src\Cron.DevToys\Core\**\*.cs"
+             Exclude="..\..\src\Cron.DevToys\bin\**\*.cs;..\..\src\Cron.DevToys\obj\**\*.cs"
+             LinkBase="Core" />
+  </ItemGroup>
+
+</Project>

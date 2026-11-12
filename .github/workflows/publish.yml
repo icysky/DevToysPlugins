@@ -58,7 +58,7 @@ jobs:
       - name: Smoke tests
         shell: powershell
         run: |
-          $suites = @('GmCrypto.Smoke', 'ChineseIpsum.Smoke', 'GoogleAuthenticator.Smoke', 'MyCert.Smoke', 'JsFormat.Smoke')
+          $suites = @('GmCrypto.Smoke', 'ChineseIpsum.Smoke', 'GoogleAuthenticator.Smoke', 'MyCert.Smoke', 'JsFormat.Smoke', 'Cron.Smoke')
           foreach ($suite in $suites) {
             Write-Host "=== $suite"
             $out = & powershell -NoProfile -ExecutionPolicy Bypass -File "./tools/$suite/run.ps1" 2>&1 | Out-String
@@ -80,7 +80,7 @@ jobs:
         run: |
           $version = '${{ inputs.version }}'
           # JsFormat.DevToys 刻意不在列表里：它与 CodeFormatter 类扩展功能重复，仅自用不发 nuget。
-          $plugins = @('GmCrypto.DevToys', 'MyCert.DevToys', 'GoogleAuthenticator.DevToys', 'ChineseIpsum.DevToys')
+          $plugins = @('GmCrypto.DevToys', 'MyCert.DevToys', 'GoogleAuthenticator.DevToys', 'ChineseIpsum.DevToys', 'Cron.DevToys')
           foreach ($plugin in $plugins) {
             Write-Host "=== $plugin"
             $packArgs = @{ NoClean = $true }
@@ -143,7 +143,7 @@ jobs:
           }
 
           if (-not $notes) {
-            $notes = "NuGet: GmCrypto.DevToys / MyCert.DevToys / GoogleAuthenticator.DevToys / ChineseIpsum.DevToys"
+            $notes = "NuGet: GmCrypto.DevToys / MyCert.DevToys / GoogleAuthenticator.DevToys / ChineseIpsum.DevToys / Cron.DevToys"
           }
 
           Write-Host "release notes:"

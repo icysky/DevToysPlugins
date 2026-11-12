@@ -42,3 +42,8 @@
 [`licenses/Acornima-BSD-3.txt`](licenses/Acornima-BSD-3.txt)
 
 > 该插件仅自用，不发布到 nuget.org。
+
+## Cron.DevToys
+
+无第三方运行时依赖：Cron 字段解析、下次执行时间推算与中文描述均为本仓库自研的纯托管实现，
+除宿主提供的 `DevToys.Api` 外不引用任何包。
