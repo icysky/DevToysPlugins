@@ -18,8 +18,10 @@ $packageId = 'ChineseIpsum.DevToys'
 
 $sdk = (& dotnet --version).Trim()
 Write-Host "SDK: $sdk"
-if (-not $sdk.StartsWith('10.')) {
-    throw "Requires the .NET 10 SDK (see global.json). Current SDK: $sdk"
+$sdkMajor = 0
+if ($sdk -match '^(\d+)\.') { $sdkMajor = [int]$Matches[1] }
+if ($sdkMajor -lt 10) {
+    throw "Requires the .NET 10 SDK or newer (see global.json). Current SDK: $sdk"
 }
 
 if (-not $NoClean) {
