@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    C# 实体类 → JSON 的核心逻辑回归：只链接 Core 源码，不依赖 DevToys.Api。
+    运行：powershell -ExecutionPolicy Bypass -File tools\EntityJson.Smoke\run.ps1
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>EntityJson.DevToys</RootNamespace>
+    <AssemblyName>EntityJson.Smoke</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\src\EntityJson.DevToys\Core\**\*.cs"
+             Exclude="..\..\src\EntityJson.DevToys\bin\**\*.cs;..\..\src\EntityJson.DevToys\obj\**\*.cs"
+             LinkBase="Core" />
+  </ItemGroup>
+
+</Project>
