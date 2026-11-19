@@ -27,3 +27,6 @@ artifacts/
 # 鎿嶄綔绯荤粺
 Thumbs.db
 .DS_Store
+
+# 独立应用的单文件发布输出
+publish/

@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/apps/">
+    <Project Path="apps/ColorSchemer/ColorSchemer.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/ColorSchemer.Smoke/ColorSchemer.Smoke.csproj" />
+  </Folder>
+</Solution>
