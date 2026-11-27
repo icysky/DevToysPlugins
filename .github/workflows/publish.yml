@@ -53,24 +53,17 @@ jobs:
           dotnet build DevToysPlugins.slnx -c Release --nologo
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      # 每个套件用子进程跑（run.ps1 里有 exit，同会话调用会连带终止调用方），
-      # 失败时把输出尾巴写进 ::error:: 注解——注解可通过公开 API 读取，便于远程排障。
+      # 直接在 bash 里跑 dotnet run：Windows PowerShell 5.1 捕获原生命令 stderr 时
+      # 偶发 ArgumentOutOfRangeException（capacity was less than the current size），
+      # 程序还没输出就中断，且 run.ps1 里的 ::error:: 注解也来不及写。
       - name: Smoke tests
-        shell: powershell
+        shell: bash
         run: |
-          $suites = @('GmCrypto.Smoke', 'ChineseIpsum.Smoke', 'GoogleAuthenticator.Smoke', 'MyCert.Smoke', 'JsFormat.Smoke', 'Cron.Smoke', 'EntityJson.Smoke', 'CodecHub.Smoke')
-          foreach ($suite in $suites) {
-            Write-Host "=== $suite"
-            $out = & powershell -NoProfile -ExecutionPolicy Bypass -File "./tools/$suite/run.ps1" 2>&1 | Out-String
-            $code = $LASTEXITCODE
-            Write-Host $out
-            if ($code -ne 0) {
-              $tail = ($out -split "`r?`n" | Where-Object { $_.Trim() } | Select-Object -Last 12) -join ' | '
-              Write-Host "::error::$suite failed (exit $code): $tail"
-              Write-Host "::error::runtimes: $((& dotnet --list-runtimes) -join ' | ')"
-              exit $code
-            }
-          }
+          set -e
+          for suite in GmCrypto.Smoke ChineseIpsum.Smoke GoogleAuthenticator.Smoke MyCert.Smoke JsFormat.Smoke Cron.Smoke EntityJson.Smoke CodecHub.Smoke; do
+            echo "=== $suite"
+            dotnet run --project "./tools/$suite/$suite.csproj" -c Release --nologo
+          done
 
       # 注意：必须用「命名参数」调用（哈希表 splat）。
       # 数组 splat 会按位置绑定，'-NoClean' 会被当成 -Configuration 的取值，
