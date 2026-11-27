@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- 必须按 net8.0 编译：DevToys 2.0.9-preview 宿主是自包含 .NET 8（详见仓库根 README 坑 1）。 -->
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>CodecHub.DevToys</RootNamespace>
+    <AssemblyName>CodecHub.DevToys</AssemblyName>
+    <IsPackable>true</IsPackable>
+    <Version>1.0.4.0</Version>
+    <Title>DevToys Codec Hub</Title>
+    <Description>Unified encoder/decoder workbench: URL, HTML, Unicode, JSON, Base64/32/58, Hex, charsets, radix, two's complement, IPv4, Unix time and GUID.</Description>
+    <Authors>CodecHub</Authors>
+    <PackageId>CodecHub.DevToys</PackageId>
+    <PackageTags>devtoys-app</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <PublishTrimmed>false</PublishTrimmed>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="DevToys.Api" Version="2.0.9-preview" PrivateAssets="all" ExcludeAssets="runtime" />
+    <PackageReference Include="System.ComponentModel.Composition" Version="8.0.0" PrivateAssets="all" ExcludeAssets="runtime" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+  <Target Name="IncludeAllFilesInTargetDir" BeforeTargets="_GetPackageFiles">
+    <ItemGroup>
+      <None Include="$(OutputPath)\**">
+        <Pack>true</Pack>
+        <PackagePath>lib\$(TargetFramework)</PackagePath>
+      </None>
+    </ItemGroup>
+  </Target>
+</Project>

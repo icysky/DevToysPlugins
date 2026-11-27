@@ -1,6 +1,6 @@
 # DevToysPlugins
 
-自用的七个 [DevToys 2.0（Preview）](https://devtoys.app/) 扩展，统一在一个解决方案里。
+自用的八个 [DevToys 2.0（Preview）](https://devtoys.app/) 扩展，统一在一个解决方案里。
 
 | 项目 | 功能 | 工具名（DevToys 左侧） | NuGet |
 | --- | --- | --- | --- |
@@ -11,8 +11,9 @@
 | [`src/JsFormat.DevToys`](src/JsFormat.DevToys/README.md) | 内嵌 Prettier 格式化 JS / TS / TSX / JSX / JSON | JS 格式化 | 不发布（与现有扩展功能重复，仅自用） |
 | [`src/Cron.DevToys`](src/Cron.DevToys/README.md) | Cron 表达式生成器 + 中文描述 + 下次执行时间预览 | Cron 表达式 | [Cron.DevToys](https://www.nuget.org/packages/Cron.DevToys) |
 | [`src/EntityJson.DevToys`](src/EntityJson.DevToys/README.md) | C# / TypeScript / Java 实体类 ⇄ JSON（正向占位值可配，反向生成实体代码） | 实体类 ⇄ JSON | [EntityJson.DevToys](https://www.nuget.org/packages/EntityJson.DevToys) |
+| [`src/CodecHub.DevToys`](src/CodecHub.DevToys/README.md) | 综合编码转换台：URL / HTML / Unicode / JSON / Base64/32/58 / Hex / 字符集 / 进制 / 补码 / IPv4 / 时间戳 / GUID | 编码转换台 | [CodecHub.DevToys](https://www.nuget.org/packages/CodecHub.DevToys) |
 
-前四个插件在「生成器（Generators）」分组，国密四个工具在「编码/解码（Encoders & Decoders）」分组，JS 格式化在「格式化（Formatters）」分组，Cron 表达式也在「生成器」分组，实体类转 JSON 在「转换器（Converters）」分组。
+前四个插件在「生成器（Generators）」分组，国密四个工具在「编码/解码（Encoders & Decoders）」分组，编码转换台也在「编码/解码」分组，JS 格式化在「格式化（Formatters）」分组，Cron 表达式也在「生成器」分组，实体类转 JSON 在「转换器（Converters）」分组。
 
 ## 安装
 
@@ -31,6 +32,7 @@ DevToysPlugins/
 │  ├─ GoogleAuthenticator.DevToys/   # 动态口令
 │  ├─ MyCert.DevToys/                # 证书生成器（CertGen\ 为内联的证书生成实现）
 │  ├─ ChineseIpsum.DevToys/          # 中文假文
+│  ├─ CodecHub.DevToys/              # 编码转换台（Core\ 为纯逻辑层，15 种模式）
 │  ├─ GmCrypto.DevToys/              # 国密四件套（Core\ 为 GM 算法层的内联副本 + Shared\ 共享层）
 │  ├─ JsFormat.DevToys/              # JS 格式化（Assets\prettier 为内嵌的 Prettier 3 构建，仅自用）
 │  ├─ Cron.DevToys/                  # Cron 表达式生成 / 解析（Core\ 为纯逻辑层）
@@ -38,6 +40,7 @@ DevToysPlugins/
 └─ tools/
    ├─ GoogleAuthenticator.Smoke/     # 动态口令回归（110 项，net8.0）
    ├─ ChineseIpsum.Smoke/            # 假文生成回归（82 项，net8.0）
+   ├─ CodecHub.Smoke/                # 编码 / 进制回归（105 项，net8.0）
    ├─ GmCrypto.Smoke/                # 国密算法 + 共享层回归（29 项，net8.0）
    ├─ JsFormat.Smoke/                # JS 格式化回归（24 项，net8.0）
    ├─ Cron.Smoke/                    # Cron 解析 / 生成回归（88 项，net8.0）
@@ -74,11 +77,12 @@ powershell -ExecutionPolicy Bypass -File .\deploy-all.ps1 -Configuration Debug
 # 编译全部
 dotnet build DevToysPlugins.slnx
 
-# 两个回归测试示例（其余套件同理）
+# 回归测试示例（其余套件同理）
 powershell -ExecutionPolicy Bypass -File .\tools\GmCrypto.Smoke\run.ps1
 powershell -ExecutionPolicy Bypass -File .\tools\GoogleAuthenticator.Smoke\run.ps1
 powershell -ExecutionPolicy Bypass -File .\tools\ChineseIpsum.Smoke\run.ps1
 powershell -ExecutionPolicy Bypass -File .\tools\Cron.Smoke\run.ps1
+powershell -ExecutionPolicy Bypass -File .\tools\CodecHub.Smoke\run.ps1
 
 # 只装某一个插件（产物统一落在 artifacts\）
 powershell -ExecutionPolicy Bypass -File .\src\MyCert.DevToys\pack.ps1 -Install
